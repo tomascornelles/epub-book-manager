@@ -22,7 +22,6 @@ editorial:`You are a professional American English nonfiction editor.\n\nReview 
 metadata:`Generate Amazon KDP metadata for:\n\nTITLE: {{title}}\nAUTHOR: {{author}}\nTARGET READER: {{reader}}\nNICHE: {{niche}}\nTYPE: {{type}}\n\nReturn Markdown with a 250–350 word accurate book description, a short text for back cover, 7 keyword phrase ideas, and relevant category ideas.\n\nNo fake bestseller claims, reviews, competitor names or guarantees.\n\nAlso create front and back mater.\n\nFollow this structure:\n\n## Descripton\n\n \`\`\`\n [description]\n \`\`\`\n \n ## Back text\n\n \`\`\`\n [back text]\n \`\`\`\n \n ## Keywords\n \`\`\`\n [keywords]\n \`\`\`\n \n ## Categories\n \`\`\`\n [categories]\n \`\`\`\n \n ## Front matter\n \`\`\`\n [front matter]\n \`\`\`\n \n ## Back matter\n \`\`\`\n [back matter]\n \`\`\` `
 };
 
-const STEPS=[["research","Research","Content research brief","01-research.txt"],["outline","Outline","Book structure and chapter plan","02-outline.txt"],["editorial","Editorial review","Quality and AI-like filler review","05-editorial-review.md"],["metadata","KDP metadata","Title, description, keywords and categories","07-kdp-metadata.txt"]];
 
 const OUTLINE_PROMPTS={
 workbook:`You are a professional nonfiction book editor.\n\nTITLE:\n{{title}}\n\nTARGET READER:\n{{reader}}\nBOOK TYPE:\n{{type}}\nNICHE:\n{{niche}}\n\nCreate a detailed outline with a logical progression. For every chapter create the PROMPT "You are an experienced American nonfiction workbook author.\n\nBOOK:\n{{title}}\nTARGET READER:\n{{reader}}\nBOOK TYPE:\n{{type}}\nCHAPTER:\n{{chapter}}\nCHAPTER PURPOSE:\n{{purpose}}\n\nWrite one complete chapter in natural American English. Use Markdown headings, short paragraphs, concrete examples and actionable exercises. Do not invent facts, statistics, citations, experts, or testimonials. Do not mention AI.\n\nUse this Markdown structure:\n# Chapter [NUMBER] — [TITLE]\n\n## Introduction\n\n## Key Concept\n\n## Why It Matters\n\n## Step 1\n\n## Step 2\n\n## Step 3\n\n## Practical Exercise\n\n## Worksheet\n\n## Reflection\n\n## Action Checklist\n\n## Key Takeaways\n\n## Next Step\n\nReturn only the finished Markdown chapter." ready to paste. Avoid repetition and filler. Make every chapter materially useful. Write in natural American English.`,
@@ -30,7 +29,25 @@ challenge:`You are a professional nonfiction book editor.\n\nTITLE:\n{{title}}\n
 novel:`You are a professional fiction book editor.\n\nTITLE:\n{{title}}\n\nTARGET READER:\n{{reader}}\nBOOK TYPE:\n{{type}}\nNICHE:\n{{niche}}\n\nCreate a detailed outline with a logical progression. For every chapter create the PROMPT "You are an experienced American fiction workbook author.\n\nBOOK:\n{{title}}\nTARGET READER:\n{{reader}}\nBOOK TYPE:\n{{type}}\nCHAPTER:\n{{chapter}}\nCHAPTER PLOT:\n[CHAPTER PLOT]\n\nWrite one complete chapter in natural American English between 10-20 pages. Use Markdown headings, long paragraphs, descriptive scenes and be consistent with the data. Do not mention AI.\n\nUse this Markdown structure:\n# Chapter [NUMBER] — [TITLE]\n\n[CONTENT]\n\nReturn only the finished Markdown chapter." ready to paste. Avoid repetition and filler. Make every chapter materially useful. Write in natural American English.`
 };
 
-const SECTIONS={"RESEARCH":"research","OUTLINE":"outline","EDITORIAL":"editorial","METADATA":"metadata"};
+const PROMPT_KEY="kdp-prompt-steps-v1";
+const FIELDS=[["type","Type"],["niche","Niche"],["status","Status"],["language","Language"],["author","Author"]];
+const OPS=["is","is not","contains"];
+const WILDCARDS=["title","author","reader","niche","type","language","status","price","archive-reason","description","backText","tags","categories","frontMatter","backMatter","chapter","purpose"];
+const DEFAULT_STEPS=[
+  {id:"research",title:"Research",description:"Content research brief",fileName:"01-research.txt",conditions:[],prompt:PROMPTS.research,hidden:false},
+  {id:"outline",title:"Outline",description:"Book structure and chapter plan",fileName:"02-outline.txt",conditions:[{field:"type",op:"is not",value:"30-Day Challenge"},{field:"type",op:"is not",value:"Novel"}],prompt:OUTLINE_PROMPTS.workbook,hidden:false},
+  {id:"outline-challenge",title:"Outline (30-Day Challenge)",description:"Day-by-day challenge plan",fileName:"02-outline.txt",conditions:[{field:"type",op:"is",value:"30-Day Challenge"}],prompt:OUTLINE_PROMPTS.challenge,hidden:false},
+  {id:"outline-novel",title:"Outline (Novel)",description:"Chapter plot plan",fileName:"02-outline.txt",conditions:[{field:"type",op:"is",value:"Novel"}],prompt:OUTLINE_PROMPTS.novel,hidden:false},
+  {id:"editorial",title:"Editorial review",description:"Quality and AI-like filler review",fileName:"05-editorial-review.md",conditions:[],prompt:PROMPTS.editorial,hidden:false},
+  {id:"metadata",title:"KDP metadata",description:"Title, description, keywords and categories",fileName:"07-kdp-metadata.txt",conditions:[],prompt:PROMPTS.metadata,hidden:false}
+];
+const LEGACY_SECTIONS={"RESEARCH":"research","OUTLINE":"outline","EDITORIAL":"editorial","METADATA":"metadata"};
+let promptSteps=loadPromptSteps();
+function loadPromptSteps(){
+  try{const s=JSON.parse(localStorage.getItem(PROMPT_KEY)||"null");if(Array.isArray(s))return s}catch{}
+  return JSON.parse(JSON.stringify(DEFAULT_STEPS));
+}
+function savePromptSteps(){localStorage.setItem(PROMPT_KEY,JSON.stringify(promptSteps))}
 const COMBOS={author:{input:"authorInput",list:"authors"},niche:{input:"nicheInput",list:"niches"},type:{input:"typeInput",list:"types"},language:{input:"languageInput",list:"languages"}};
 
 let books=load(), selectedId=null, activeIndex=-1, dbPromise=null;
@@ -46,8 +63,9 @@ function saveBlob(name,blob){const a=document.createElement("a"),url=URL.createO
 function download(name,text){saveBlob(name,new Blob([text],{type:"text/plain;charset=utf-8"}))}
 
 /* ---------- Modals ---------- */
-function closeModal(){$("modal").classList.add("hidden")}
-function openModal(title,body){$("modalTitle").textContent=title;$("modalBody").innerHTML=body;$("modal").classList.remove("hidden")}
+let modalOnClose=null;
+function closeModal(){const back=modalOnClose;modalOnClose=null;if(back)return back();$("modal").classList.add("hidden")}
+function openModal(title,body){modalOnClose=null;$("modalTitle").textContent=title;$("modalBody").innerHTML=body;$("modal").classList.remove("hidden")}
 function showNotice(title,message){
   openModal(title,`<div class="form-editor"><p class="modal-text">${esc(message)}</p><div class="confirm-actions"><button class="primary" id="okBtn">OK</button></div></div>`);
   $("okBtn").onclick=closeModal;
@@ -126,12 +144,16 @@ function normalize(b){
   if(n)b.niche=n[1];
   b.publishing={...blankPublishing(),...(b.publishing||{})};
   b.language=b.language||"en-US";
+  if(!b.steps){
+    b.steps={research:b.research||"",outline:b.outline||"",editorial:b.editorial||"",metadata:b.metadata||""};
+    delete b.research;delete b.outline;delete b.editorial;delete b.metadata;
+  }
   return b;
 }
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]").map(normalize)}catch{return[]}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(books));renderList()}
 function blankPublishing(){return Object.fromEntries(PUB_FIELDS.map(([k])=>[k,""]))}
-function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",language:"en-US",status:STATUSES[0],archiveReason:"",created:now,updated:now,research:"",outline:"",editorial:"",metadata:"",publishing:blankPublishing()}}
+function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",language:"en-US",status:STATUSES[0],archiveReason:"",created:now,updated:now,steps:{},publishing:blankPublishing()}}
 function selected(){return books.find(b=>b.id===selectedId)}
 
 /* ---------- Autocomplete suggestions ---------- */
@@ -219,7 +241,6 @@ function saveCurrent(silent=false){
 }
 function newBook(){const b=blank();books.unshift(b);persist();openBook(b.id)}
 function showEmpty(){selectedId=null;$("editor").classList.add("hidden");$("emptyState").classList.remove("hidden");renderList()}
-function template(s,b){return s.replaceAll("{{title}}",b.title).replaceAll("{{author}}",b.author).replaceAll("{{reader}}",b.reader).replaceAll("{{niche}}",b.niche).replaceAll("{{type}}",b.type).replaceAll("{{chapter}}","[CHAPTER NUMBER AND TITLE]").replaceAll("{{purpose}}","[CHAPTER PURPOSE]")}
 function renderList(){
   const q=$("searchInput").value.trim().toLowerCase(),f=$("statusFilter").value;
   const vs=books
@@ -268,43 +289,142 @@ function renderPublishing(){
 }
 
 /* ---------- Workflow steps and prompts ---------- */
-function stepName(key){return STEPS.find(x=>x[0]===key)[1]}
+/* ---------- Configuración de prompts y pasos del workflow ---------- */
+function openPromptConfig(){renderPromptList()}
+function condSummary(s){return (s.conditions||[]).map(c=>`${c.field} ${c.op} "${c.value}"`).join(" & ")||"Always"}
+function renderPromptList(){
+  openModal("Configure prompts",`<div class="pc-body">
+    <div class="pc-head"><p class="modal-text">Steps appear in the workflow when they're visible and their conditions match the book.</p><button class="primary" onclick="editPromptStep()">New step</button></div>
+    <div class="pc-list">${promptSteps.map(s=>`<div class="pc-row ${s.hidden?"is-hidden":""}">
+      <div class="pc-info"><strong>${esc(s.title)}</strong><span class="muted">${esc(s.description)}</span><span class="pc-meta">${s.hidden?"Hidden · ":""}${esc(condSummary(s))}</span></div>
+      <div class="pc-side"><span class="pc-id">step.${s.id}</span><div class="pc-actions">
+        <button class="secondary" onclick="editPromptStep('${s.id}')">Edit</button>
+        <button class="secondary" onclick="togglePromptStep('${s.id}')">${s.hidden?"Show":"Hide"}</button>
+        <button class="danger" onclick="deletePromptStep('${s.id}')">Delete</button>
+      </div></div></div>`).join("")}</div>
+  </div>`);
+}
+let draft=null;
+function editPromptStep(id){
+  const s=id?promptSteps.find(x=>x.id===id):null;
+  draft=s?JSON.parse(JSON.stringify(s)):{id:"step-"+uid().slice(0,8),title:"",description:"",fileName:"",conditions:[],prompt:"",hidden:false};
+  openModal(`${s?"Edit":"New"} step — step.${draft.id}`,`<div class="ps-form">
+    <label>Title<input id="psTitle"></label>
+    <label>Description<input id="psDesc"></label>
+    <div class="ps-conds"><div class="ps-label">Show when all of these match</div><div id="psCondRows"></div><button class="secondary" onclick="addCondRow()">Add condition</button></div>
+    <label>Prompt<textarea id="psPrompt" class="ps-prompt" rows="12" spellcheck="false"></textarea></label>
+    <div class="ps-wild"><span class="ps-label">Wildcards</span>${WILDCARDS.map(w=>`<button type="button" class="chip" onclick="insertWildcard('${w}')">{{${w}}}</button>`).join("")}</div>
+    <p class="muted ps-note">Use {{step.ID}} to insert the saved text of another step, where ID is that step's id.</p>
+    <div class="confirm-actions"><button class="secondary" onclick="renderPromptList()">Cancel</button><button class="primary" onclick="savePromptStep()">Save step</button></div>
+  </div>`);
+  $("psTitle").value=draft.title;
+  $("psDesc").value=draft.description;
+  $("psPrompt").value=draft.prompt;
+  const pt=$("psPrompt");pt.oninput=()=>autoGrow(pt);autoGrow(pt);
+  const rows=$("psCondRows");
+  rows.oninput=rows.onchange=e=>{
+    const i=Number(e.target.dataset.ci);
+    if(Number.isNaN(i)||!draft.conditions[i])return;
+    draft.conditions[i][e.target.dataset.k]=e.target.value;
+  };
+  renderCondRows();
+  modalOnClose=renderPromptList;
+}
+function renderCondRows(){
+  $("psCondRows").innerHTML=draft.conditions.map((c,i)=>`<div class="ps-cond">
+      <select data-ci="${i}" data-k="field">${FIELDS.map(([v,l])=>`<option value="${v}" ${c.field===v?"selected":""}>${l}</option>`).join("")}</select>
+      <select data-ci="${i}" data-k="op">${OPS.map(o=>`<option ${c.op===o?"selected":""}>${o}</option>`).join("")}</select>
+      <input data-ci="${i}" data-k="value" value="${esc(c.value)}" placeholder="value">
+      <button class="icon-btn danger-icon" onclick="removeCondRow(${i})" title="Remove">×</button></div>`).join("")||`<p class="muted">No conditions: always shown.</p>`;
+}
+function addCondRow(){draft.conditions.push({field:"type",op:"is",value:""});renderCondRows()}
+function removeCondRow(i){draft.conditions.splice(i,1);renderCondRows()}
+function insertWildcard(w){
+  const t=$("psPrompt"),tok=`{{${w}}}`,s=t.selectionStart??t.value.length,e=t.selectionEnd??s;
+  t.value=t.value.slice(0,s)+tok+t.value.slice(e);
+  t.focus();t.selectionStart=t.selectionEnd=s+tok.length;
+  autoGrow(t);
+}
+function savePromptStep(){
+  draft.title=$("psTitle").value.trim()||"Untitled step";
+  draft.description=$("psDesc").value.trim();
+  draft.prompt=$("psPrompt").value;
+  draft.conditions=draft.conditions.filter(c=>c.field&&c.op);
+  const i=promptSteps.findIndex(x=>x.id===draft.id);
+  if(i>=0)promptSteps[i]=draft;else promptSteps.push(draft);
+  savePromptSteps();
+  renderPromptList();
+  renderWorkflow();
+  toast("Step saved");
+}
+function togglePromptStep(id){
+  const s=promptSteps.find(x=>x.id===id);if(!s)return;
+  s.hidden=!s.hidden;savePromptSteps();renderPromptList();renderWorkflow();
+}
+function deletePromptStep(id){
+  const s=promptSteps.find(x=>x.id===id);if(!s)return;
+  askConfirm("Delete step",`Delete "${s.title}" from the prompts? Text already saved in books is kept but no longer shown.`,"Delete",()=>{
+    promptSteps=promptSteps.filter(x=>x.id!==id);
+    savePromptSteps();renderPromptList();renderWorkflow();toast("Step deleted");
+  },true);
+}
+
+/* ---------- Visibilidad, wildcards y workflow ---------- */
+function stepVisible(s,b){
+  if(s.hidden)return false;
+  return (s.conditions||[]).every(c=>{
+    const v=String(b[c.field]??"").toLowerCase(),t=String(c.value??"").toLowerCase();
+    if(c.op==="is")return v===t;
+    if(c.op==="is not")return v!==t;
+    if(c.op==="contains")return v.includes(t);
+    return true;
+  });
+}
+function wildcardMap(b){
+  const map={
+    title:b.title,author:b.author,reader:b.reader,niche:b.niche,type:b.type,language:b.language,
+    status:b.status,price:b.price,"archive-reason":b.archiveReason||"",
+    chapter:"[CHAPTER NUMBER AND TITLE]",purpose:"[CHAPTER PURPOSE]"
+  };
+  for(const [k,v] of Object.entries(b.publishing||{}))map[k]=v;
+  for(const [k,v] of Object.entries(b.steps||{}))map["step."+k]=v;
+  return map;
+}
+function template(s,b){
+  const map=wildcardMap(b);
+  return s.replace(/\{\{\s*([\w.-]+)\s*\}\}/g,(all,k)=>(k in map)?map[k]:all);
+}
 function renderWorkflow(){
-  const b=selected();
-  $("workflowTab").innerHTML=STEPS.map(([key,name,desc,file],i)=>{
-    const done=!!b[key],ext=file.split(".").pop();
-    return `<div class="step ${done?"done":""}"><div class="step-head"><div class="step-num">${i+1}</div><div class="step-title">${name}</div></div><div class="muted" style="margin-left:39px;margin-top:4px">${desc}</div><div class="step-actions"><button class="primary-mini" onclick="showPrompt('${key}')">View prompt</button>${done?`<button class="edit-green" onclick="editTextStep('${key}')">Edit response</button>`:`<button onclick="editTextStep('${key}')">Paste response</button>`}${done&&ext==="md"?`<button onclick="downloadStep('${key}')">Save .${ext}</button>`:""}</div></div>`;
+  const b=selected();if(!b)return;
+  const steps=promptSteps.filter(s=>stepVisible(s,b));
+  $("workflowTab").innerHTML=steps.map((s,i)=>{
+    const done=!!b.steps[s.id];
+    return `<div class="step ${done?"done":""}"><div class="step-head"><div class="step-num">${i+1}</div><div class="step-title">${esc(s.title)}</div></div><div class="muted" style="margin-left:39px;margin-top:4px">${esc(s.description)}</div><div class="step-actions"><button class="primary-mini" onclick="showPrompt('${s.id}')">View prompt</button>${done?`<button class="edit-green" onclick="editTextStep('${s.id}')">Edit response</button>`:`<button onclick="editTextStep('${s.id}')">Paste response</button>`}</div></div>`;
   }).join("");
 }
-function selectedOutline(){
-  const t=selected().type.toLowerCase();
-  if(t==="novel")return OUTLINE_PROMPTS.novel;
-  if(t==="30-day challenge")return OUTLINE_PROMPTS.challenge;
-  return OUTLINE_PROMPTS.workbook;
+function showPrompt(id){
+  const b=selected(),s=promptSteps.find(x=>x.id===id);if(!s)return;
+  openModal(`Prompt — ${s.title}`,`<div class="modal-body"><textarea class="prompt-area" id="promptText">${esc(template(s.prompt,b))}</textarea></div><div class="modal-footer"><button class="primary" onclick="copyPrompt()">Copy prompt</button><button class="secondary" onclick="editTextStep('${id}')">Edit / paste result</button></div>`);
+  autoGrow($("promptText"));
 }
-function showPrompt(key){
-  const b=selected();
-  const text=key==="outline"?selectedOutline():PROMPTS[key];
-  openModal(`Prompt — ${stepName(key)}`,`<div class="modal-body"><textarea class="prompt-area" id="promptText">${esc(template(text,b))}</textarea></div><div class="modal-footer"><button class="primary" onclick="copyPrompt()">Copy prompt</button><button class="secondary" onclick="editTextStep('${key}')">Edit / paste result</button></div>`);
-}
+function autoGrow(t){t.style.height="auto";t.style.height=t.scrollHeight+"px"}
 async function copyPrompt(){await navigator.clipboard.writeText($("promptText").value);toast("Prompt copied")}
-function editTextStep(key){
-  const b=selected();
-  openModal(`Edit / paste — ${stepName(key)}`,`<div class="form-editor"><label>Content<textarea id="stepContent">${esc(b[key]||"")}</textarea></label><div><button class="primary" onclick="saveTextStep('${key}')">Save</button></div></div>`);
+function editTextStep(id){
+  const b=selected(),s=promptSteps.find(x=>x.id===id);if(!s)return;
+  openModal(`Edit / paste — ${s.title}`,`<div class="form-editor"><label>Content<textarea id="stepContent">${esc(b.steps[id]||"")}</textarea></label><div><button class="primary" onclick="saveTextStep('${id}')">Save</button></div></div>`);
 }
-function saveTextStep(key){
+function saveTextStep(id){
   const b=selected();
-  b[key]=$("stepContent").value;
+  b.steps[id]=$("stepContent").value;
   b.updated=new Date().toISOString();
   persist();
   closeModal();
   renderWorkflow();
-  toast(`Saved ${key}`);
+  toast("Saved");
 }
-function downloadStep(key){const b=selected(),step=STEPS.find(x=>x[0]===key);download(step[3],b[key]||"")}
 
 /* ---------- Export / import ---------- */
-function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n\n=== RESEARCH ===\n${b.research}\n\n=== OUTLINE ===\n${b.outline}\n\n=== EDITORIAL ===\n${b.editorial}\n\n=== METADATA ===\n${b.metadata}\n${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
+function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n${Object.entries(b.steps||{}).map(([k,v])=>`\n=== STEP ${k} ===\n${v}\n`).join("")}${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
 
 
 function parseBookTxt(text){
@@ -313,16 +433,17 @@ function parseBookTxt(text){
   for(const line of text.split(/\r?\n/)){
     if(line.startsWith("=== ")&&line.endsWith(" ===")){
       const name=line.slice(4,-4);
-      if(SECTIONS[name])section={holder:"",key:SECTIONS[name]};
+      if(name.startsWith("STEP ")){const k=name.slice(5).trim();b.steps[k]="";section={holder:"steps",key:k}}
+      else if(LEGACY_SECTIONS[name]){const k=LEGACY_SECTIONS[name];b.steps[k]="";section={holder:"steps",key:k}}
       else if(PUB_HEADERS[name])section={holder:"publishing",key:PUB_HEADERS[name]};
       else section=null;
       continue;
     }
-    if(section){(section.holder?b[section.holder]:b)[section.key]+=line+"\n";continue}
+    if(section){b[section.holder][section.key]+=line+"\n";continue}
     const m=line.match(/^([^:]+):\s*(.*)$/);
     if(m&&fields[m[1]])b[fields[m[1]]]=m[2];
   }
-  for(const s of Object.values(SECTIONS))b[s]=b[s].replace(/\s+$/,"");
+  for(const k of Object.keys(b.steps))b.steps[k]=b.steps[k].replace(/\s+$/,"");
   for(const [k] of PUB_FIELDS)b.publishing[k]=b.publishing[k].replace(/\s+$/,"");
   return normalize(b);
 }
@@ -884,6 +1005,7 @@ $("appMenu").addEventListener("click",e=>{
   if(e.target.closest(".menu-item"))$("appMenu").classList.add("hidden");
 });
 $("importBtn").onclick=()=>$("importInput").click();
+$("promptsBtn").onclick=openPromptConfig;
 
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
