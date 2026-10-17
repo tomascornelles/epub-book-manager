@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "KDP Book Manager",
-  "short_name": "KDP Books",
-  "description": "Local-first manager for Amazon KDP books with an AI-assisted workflow.",
+  "name": "ePub Book Manager",
+  "short_name": "ePub Books",
+  "description": "Local-first manager for ePub books with an AI-assisted workflow.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

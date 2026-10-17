@@ -1,11 +1,11 @@
-/* KDP Book Manager — service worker
+/* ePub Book Manager — service worker
  * Strategy: the app shell is precached on install. Afterwards every same-origin
  * GET is served stale-while-revalidate: instant offline/cached response, with the
  * cache refreshed in the background. Bump CACHE_VERSION when the shell changes
  * in a way that must not be served stale.
  */
-const CACHE_VERSION = "v1";
-const CACHE = `kdp-book-manager-${CACHE_VERSION}`;
+const CACHE_VERSION = "v2";
+const CACHE = `epub-book-manager-${CACHE_VERSION}`;
 const SHELL = [
   "./",
   "./index.html",
@@ -15,7 +15,9 @@ const SHELL = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon-32.png",
+  "./favicon.ico"
 ];
 
 self.addEventListener("install", event => {
@@ -27,7 +29,7 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k.startsWith("kdp-book-manager-") && k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

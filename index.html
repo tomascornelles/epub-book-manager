@@ -2,20 +2,20 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <script>(function(){var p=localStorage.getItem("kdp-theme")||"system";var d=p==="system"?matchMedia("(prefers-color-scheme: dark)").matches:p==="dark";document.documentElement.dataset.theme=d?"dark":"light"})();</script>
-<meta name="description" content="Local-first manager for Amazon KDP books with an AI-assisted workflow. Installable and works offline.">
+<meta name="description" content="Local-first manager for ePub books with an AI-assisted workflow. Installable and works offline.">
 <meta name="theme-color" content="#0a84ff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="KDP Books">
+<meta name="apple-mobile-web-app-title" content="ePub Books">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>KDP Book Manager</title><link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
+<title>ePub Book Manager</title><link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 </head>
 <body>
 <div class="app">
 <aside class="sidebar">
-  <div class="brand">KDP Book Manager</div>
   <button id="newBookBtn" class="primary full">＋ New book</button>
   <div class="side-section"><label>Books</label><div class="search-wrap"><input id="searchInput" placeholder="Search books…"><button id="searchClear" class="search-clear" title="Clear search" aria-label="Clear search">×</button></div></div>
   <div class="side-section"><label>Status</label><select id="statusFilter"></select></div>
@@ -30,6 +30,8 @@
         <button class="menu-item" id="promptsBtn">Configure prompts</button>
         <button class="menu-item" id="templatesBtn">Configure templates</button>
         <button class="menu-item" id="backupBtn">Backup</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item hidden" id="installBtn">Install app</button>
         <div class="menu-sep"></div>
         <div class="menu-caption">Appearance</div>
         <div class="segmented">
@@ -65,15 +67,15 @@
   <div class="meta-grid">
     <div class="field">
       <label for="authorInput">Author</label>
-      <div class="combo"><input id="authorInput" autocomplete="off" placeholder="Escribe o elige un autor"><div id="authorSuggest" class="suggest hidden"></div></div>
+      <div class="combo"><input id="authorInput" autocomplete="off" placeholder="Type or choose an author"><div id="authorSuggest" class="suggest hidden"></div></div>
     </div>
     <div class="field">
       <label for="nicheInput">Niche</label>
-      <div class="combo"><input id="nicheInput" autocomplete="off" placeholder="Escribe o elige un nicho"><div id="nicheSuggest" class="suggest hidden"></div></div>
+      <div class="combo"><input id="nicheInput" autocomplete="off" placeholder="Type or choose a niche"><div id="nicheSuggest" class="suggest hidden"></div></div>
     </div>
     <div class="field">
       <label for="typeInput">Type</label>
-      <div class="combo"><input id="typeInput" autocomplete="off" placeholder="Escribe o elige un tipo"><div id="typeSuggest" class="suggest hidden"></div></div>
+      <div class="combo"><input id="typeInput" autocomplete="off" placeholder="Type or choose a type"><div id="typeSuggest" class="suggest hidden"></div></div>
     </div>
     <label>Price<div class="price-wrap"><span>$</span><input id="priceInput" type="number" step="0.01" min="0" placeholder="0.00"></div></label>
     <div class="field">

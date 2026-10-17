@@ -249,7 +249,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   .title-input{font-size:26px}
 }
 
-/* ---------- Ligero relieve 3D (brillos y sombras suaves, estilo controles macOS) ---------- */
+/* ---------- Subtle 3D relief (soft highlights and shadows, macOS control style) ---------- */
 :root{
   --hi:rgba(255,255,255,.85);
   --depth:0 1px 0 rgba(255,255,255,.7) inset,0 1px 2px rgba(0,0,0,.08),0 0 0 .5px rgba(0,0,0,.06);
@@ -263,7 +263,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   }
 
 
-/* Botones: degradado sutil + brillo superior */
+/* Buttons: subtle gradient + top highlight */
 .primary,.step button.primary-mini{
   background:var(--accent);
   box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 1px 2px rgba(10,132,255,.35),0 0 0 .5px rgba(0,0,0,.2);
@@ -281,13 +281,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 .import-label{box-shadow:var(--depth);background:var(--surface)}
 
-/* Campos hundidos (inset) */
+/* Inset fields */
 .side-section input,.side-section select,
 .meta-grid input,.status-actions select{
   box-shadow:0 1px 2px rgba(0,0,0,.06) inset,0 1px 0 var(--hi);
 }
 
-/* Tarjetas elevadas con brillo superior */
+/* Raised cards with top highlight */
 .empty,.meta-grid,.step{
   background:var(--surface);
   box-shadow:var(--depth-raised);
@@ -295,13 +295,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .step.done .step-num{box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 2px 4px rgba(48,209,88,.35)}
 .step-num{box-shadow:var(--depth)}
 
-/* Elemento seleccionado de la lista: píldora con relieve */
+/* Selected list item: raised pill */
 .book-item.selected{
   background:var(--accent);
   box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 2px 6px rgba(10,132,255,.35);
 }
 
-/* Sugerencias y modal con profundidad */
+/* Suggestions and modal with depth */
 .suggest{background:var(--surface);box-shadow:var(--depth-raised)}
 .suggest-item:hover,.suggest-item.active{
   background:var(--accent);
@@ -311,8 +311,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .modal-head button{box-shadow:var(--depth)}
 .toast{box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 12px 30px rgba(0,0,0,.3)}
 
-/* ---------- Ajustes finales ---------- */
-/* Select con flecha personalizada, 5px más a la izquierda */
+/* ---------- Final adjustments ---------- */
+/* Select with custom arrow, 5px further left */
 .status-actions select{
   -webkit-appearance:none;appearance:none;
   padding:7px 32px 7px 12px;
@@ -321,24 +321,24 @@ button,input,select,textarea{font:inherit;color:inherit}
   background-position:right 13px center;
   background-size:10px 6px;
 }
-/* Precio con $ fijo */
+/* Price with fixed $ */
 .price-wrap{position:relative}
 .price-wrap span{position:absolute;left:11px;top:calc(50% + 3px);transform:translateY(-50%);color:var(--text-2);pointer-events:none}
 .price-wrap input{padding-left:22px}
-/* Paso completado: fondo verde muy claro */
+/* Completed step: very light green background */
 .step.done{background:#f3fbf6}
 :root[data-theme="dark"] .step.done{background:rgba(48,209,88,.10)}
-/* Botón "Edit response" en verde */
+/* "Edit response" button in green */
 .step button.edit-green{background:var(--success);color:#fff;border-color:transparent;box-shadow:0 1px 0 rgba(255,255,255,.35) inset}
 .step button.edit-green:hover{background:var(--success);filter:brightness(1.05)}
 
-/* ---------- Pasos en tarjetas (columnas) ---------- */
-/* Base (menos de 1200px): filas apiladas, botones alineados a la derecha */
+/* ---------- Steps as cards (columns) ---------- */
+/* Base (under 1200px): stacked rows, buttons aligned right */
 #workflowTab{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 .step-actions{margin-top:18px;justify-content:flex-end}
 .step-actions button{flex:0 0 auto}
 
-/* 1200px o más: cuatro tarjetas en columnas, botones abajo ocupando todo el ancho */
+/* 1200px or wider: four cards in columns, buttons at the bottom spanning the full width */
 @media (min-width:1200px){
   #workflowTab{grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch}
   .step{display:flex;flex-direction:column;padding:18px}
@@ -346,12 +346,12 @@ button,input,select,textarea{font:inherit;color:inherit}
   .step-actions button{flex:1 1 0;text-align:center}
 }
 
-/* ---------- Pestañas (control segmentado) ---------- */
+/* ---------- Tabs (segmented control) ---------- */
 .tabs{display:inline-flex;gap:2px;padding:3px;background:rgba(120,120,128,.14);border-radius:9px;margin-bottom:20px}
 .tab{border:0;background:transparent;padding:5px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer}
 .tab.active{background:var(--surface);color:var(--text);box-shadow:var(--depth)}
 
-/* ---------- Pestaña Publishing ---------- */
+/* ---------- Publishing tab ---------- */
 .pub-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--depth-raised);padding:18px;margin-bottom:16px}
 .card h3{margin:0 0 14px;font-size:15px;font-weight:600;letter-spacing:-.01em}
@@ -374,19 +374,19 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 .pub-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
-/* ---------- Modales de aviso y confirmación ---------- */
+/* ---------- Notice and confirmation modals ---------- */
 .modal-text{margin:0;font-size:14px;color:var(--text-2);line-height:1.5}
 .confirm-actions{display:flex;justify-content:flex-end;gap:8px}
 .modal-card .form-editor{padding:22px}
 
-/* ---------- Botones de pasos con el mismo ancho ---------- */
+/* ---------- Step buttons with the same width ---------- */
 .step-actions button{flex:0 0 170px}
 @media (min-width:1200px){
   .step-actions button{flex:1 1 0}
 }
 @media (max-width:900px){.pub-grid{grid-template-columns:1fr}}
 
-/* ---------- Cabecera del libro fija arriba ---------- */
+/* ---------- Book header pinned to the top ---------- */
 :root{--sel-bg:rgba(120,120,128,.22);--sel-hi:rgba(255,255,255,.75)}
 
   :root[data-theme="dark"]{--sel-bg:rgba(118,118,128,.36);--sel-hi:rgba(255,255,255,.08)}
@@ -397,7 +397,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   background:var(--bg);
 }
 
-/* ---------- Filtro de estado con el mismo estilo que el selector de estado ---------- */
+/* ---------- Status filter with the same style as the status selector ---------- */
 #statusFilter{
   width:100%;
   -webkit-appearance:none;appearance:none;
@@ -415,7 +415,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 #statusFilter:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
-/* ---------- Libro seleccionado: gris hundido, como en macOS ---------- */
+/* ---------- Selected book: inset grey, as in macOS ---------- */
 .book-item.selected{
   background:var(--sel-bg);
   box-shadow:inset 0 1px 3px rgba(0,0,0,.16),inset 0 -1px 0 var(--sel-hi);
@@ -423,17 +423,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 .book-item.selected .book-item-title{color:var(--text)}
 .book-item.selected .book-item-meta{color:var(--text-2)}
 
-/* ---------- Miniatura de portada en la lista ---------- */
+/* ---------- Cover thumbnail in the list ---------- */
 .book-item-row{display:flex;align-items:center;gap:10px}
 .book-item-text{flex:1;min-width:0}
 .book-thumb{width:26px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.18)}
 
-/* ---------- Ajuste del símbolo $ en el precio ---------- */
+/* ---------- Adjustment of the $ symbol in the price ---------- */
 .price-wrap{position:relative;margin-top:6px}
 .price-wrap input{margin-top:0;padding-left:24px}
 .price-wrap span{position:absolute;left:11px;top:50%;transform:translateY(-50%);line-height:1;color:var(--text-2);pointer-events:none}
 
-/* ---------- Pestaña Build ---------- */
+/* ---------- Build tab ---------- */
 .card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
 .card-head h3{margin:0}
 .card-actions,.build-actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -450,10 +450,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .preview-frame{height:75vh;padding:12px;background:var(--surface-2)}
 .preview-iframe{width:100%;height:100%;border:0;border-radius:8px;background:#fff}
 
-/* ---------- Motivo de archivo (ocupa las 3 columnas) ---------- */
+/* ---------- Archive reason (spans the 3 columns) ---------- */
 .archive-field{grid-column:1 / -1}
 
-/* ---------- Barras de desplazamiento con el estilo de la app ---------- */
+/* ---------- Scrollbars styled to match the app ---------- */
 :root{--scroll:rgba(120,120,128,.4)}
 :root[data-theme="dark"]{--scroll:rgba(235,235,245,.35)}
 *{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent}
@@ -462,7 +462,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 ::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:10px;border:3px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--text-3);border:3px solid transparent;background-clip:padding-box}
 
-/* ---------- Cabecera y pestañas fijas, a todo el ancho ---------- */
+/* ---------- Header and tabs pinned, full width ---------- */
 .main{--pad-x:40px}
 .sticky-top{
   position:sticky;top:0;z-index:4;
@@ -475,23 +475,23 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sticky-top .tabs{margin:0}
 @media (max-width:650px){.main{--pad-x:16px}}
 
-/* ---------- Capítulos arrastrables ---------- */
+/* ---------- Draggable chapters ---------- */
 .chapter-item .grip{cursor:grab;color:var(--text-3);font-size:12px;letter-spacing:-2px;user-select:none;flex-shrink:0}
 .chapter-item:active{cursor:grabbing}
 .chapter-item.dragging{opacity:.45}
 .chapter-item.drop-target{box-shadow:inset 0 2px 0 var(--accent),var(--depth)}
 
-/* ---------- Fondo de la zona principal ---------- */
+/* ---------- Main area background ---------- */
 :root{--main-bg:#fbfbfd}
 :root[data-theme="dark"]{--main-bg:#252528}
 .main{background:var(--main-bg)}
 .sticky-top{background:var(--main-bg)}
 
-/* ---------- Ajustes de cabecera y formulario ---------- */
+/* ---------- Header and form adjustments ---------- */
 .sticky-top .book-header{align-items:center}
 .sticky-top + .meta-grid{margin-top:16px}
 
-/* ---------- Menú de la barra lateral ---------- */
+/* ---------- Sidebar menu ---------- */
 .menu-wrap{position:relative}
 .app-menu{
   position:absolute;left:0;right:0;bottom:calc(100% + 8px);z-index:20;
@@ -506,7 +506,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .segmented button{flex:1;border:0;background:transparent;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;color:var(--text-2);cursor:pointer}
 .segmented button.active{background:var(--surface);color:var(--text);box-shadow:var(--depth)}
 
-/* ---------- Editor de capítulos ---------- */
+/* ---------- Chapter editor ---------- */
 .chapter-editor{padding:18px;display:grid;gap:12px}
 .editor-bar{display:flex;justify-content:flex-start}
 .editor-bar .segmented{margin:0;width:200px}
@@ -519,7 +519,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .md-preview code{font-family:ui-monospace,monospace;font-size:.9em}
 .md-preview blockquote{margin:0 0 .8em;padding-left:12px;border-left:3px solid var(--line);color:var(--text-2)}
 
-/* ---------- Pestaña Chapters: capítulos arriba, vista previa ocupa el resto ---------- */
+/* ---------- Chapters tab: chapters on top, preview takes the rest ---------- */
 #chaptersTab{display:flex;flex-direction:column;gap:16px;min-height:420px}
 #chaptersTab .chapters-card{flex:0 0 auto;margin:0}
 #chaptersTab .chapters-card .chapter-list{max-height:34vh;overflow:auto;padding:0 4px 0 0}
@@ -531,7 +531,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 #buildTab{display:flex;flex-direction:column;gap:16px;min-height:420px}
 
-/* ---------- Desplegable de contenidos en la pestaña Build ---------- */
+/* ---------- Contents dropdown in the Build tab ---------- */
 .contents-select{
   -webkit-appearance:none;appearance:none;
   width:260px;max-width:100%;
@@ -546,26 +546,26 @@ button,input,select,textarea{font:inherit;color:inherit}
 .contents-select:disabled{opacity:.5;cursor:default}
 .template-select{width:160px}
 
-/* ---------- Controles de generación: formato, plantilla y botón Generate ---------- */
+/* ---------- Generation controls: format, template and Generate button ---------- */
 .build-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .format-group{margin:0;padding:2px}
 .format-group button{padding:5px 12px;text-transform:uppercase;font-size:12px;letter-spacing:.02em}
 .build-controls .primary{padding:6px 16px}
 
-/* ---------- Lista de capítulos: ocupa todo el espacio disponible de la pestaña ---------- */
+/* ---------- Chapter list: takes all available space in the tab ---------- */
 #chaptersTab .chapters-card{flex:1 1 0;min-height:0;display:flex;flex-direction:column;margin:0}
 #chaptersTab .chapters-card .card-head{flex-shrink:0}
 #chaptersTab .chapters-card .chapter-list{flex:1 1 0;min-height:0;max-height:none;overflow:auto;padding:0 4px 0 0}
 
-/* ---------- Capítulos sin scroll: la lista crece con su contenido ---------- */
+/* ---------- Chapters without scroll: the list grows with its content ---------- */
 #chaptersTab{height:auto}
 #chaptersTab .chapters-card .chapter-list{max-height:none;overflow:visible}
 
-/* ---------- La caja de capítulos crece con su contenido ---------- */
+/* ---------- The chapter box grows with its content ---------- */
 #chaptersTab .chapters-card{flex:0 0 auto;min-height:auto;height:auto;overflow:visible;display:block}
 #chaptersTab .chapters-card .chapter-list{flex:none;min-height:auto;max-height:none;overflow:visible}
 
-/* ---------- Configuración de prompts ---------- */
+/* ---------- Prompt configuration ---------- */
 .pc-body{padding:18px;display:grid;gap:14px}
 .pc-head{display:flex;justify-content:space-between;align-items:center;gap:16px}
 .pc-head .modal-text{margin:0}
@@ -592,7 +592,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .chip:hover{background:var(--accent-soft)}
 .ps-note{margin:0;font-size:12px}
 
-/* ---------- Modales: scroll cuando no cabe la pantalla, prompts que crecen ---------- */
+/* ---------- Modals: scroll when they don't fit the screen, prompts that grow ---------- */
 .modal-card{max-height:92vh;display:flex;flex-direction:column}
 #modalBody{overflow:auto;min-height:0;flex:1 1 auto}
 .prompt-area{min-height:0;height:auto;overflow:hidden;resize:none}
@@ -601,7 +601,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pc-id{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-3)}
 .pc-actions{flex-wrap:nowrap}
 
-/* ---------- Selects con el mismo estilo que #statusInput, en toda la app ---------- */
+/* ---------- Selects with the same style as #statusInput, across the app ---------- */
 select,.side-section select,.ps-cond select,.contents-select,.template-select,.status-actions select,#statusFilter{
   -webkit-appearance:none;appearance:none;
   padding:7px 32px 7px 12px;border-radius:8px;
@@ -613,13 +613,13 @@ select,.side-section select,.ps-cond select,.contents-select,.template-select,.s
 }
 select:focus,.side-section select:focus,.ps-cond select:focus,.contents-select:focus,.template-select:focus,.status-actions select:focus,#statusFilter:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
-/* ---------- Botones de icono con tooltip ---------- */
+/* ---------- Icon buttons with tooltip ---------- */
 .icon-only{width:34px;height:34px;padding:0;display:grid;place-items:center;border-radius:8px;border:1px solid var(--field-line);background:var(--surface);color:var(--text);cursor:pointer;box-shadow:var(--depth)}
 .icon-only:hover{background:var(--surface-2)}
 .icon-only svg{width:16px;height:16px}
 .icon-only.danger-icon{color:var(--danger)}
 
-/* ---------- Archivados al final del listado ---------- */
+/* ---------- Archived books at the end of the list ---------- */
 .archived-toggle{display:flex;align-items:center;gap:6px;width:calc(100% - 8px);margin:14px 4px 6px;padding:10px 0 0;background:none;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);cursor:pointer;text-align:left}
 .archived-toggle:hover{color:var(--text-2)}
 .archived-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
@@ -627,7 +627,7 @@ select:focus,.side-section select:focus,.ps-cond select:focus,.contents-select:f
 .archived-toggle .chev.open{transform:rotate(90deg)}
 .archived-count{margin-left:auto;font-weight:500;letter-spacing:0}
 
-/* ---------- Conflictos de importación ---------- */
+/* ---------- Import conflicts ---------- */
 .conflict{padding:18px;display:grid;gap:14px}
 .conflict-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .conflict-card{background:var(--surface-2);border-radius:10px;padding:14px;display:grid;gap:10px;align-content:start;box-shadow:var(--depth)}
@@ -636,14 +636,14 @@ select:focus,.side-section select:focus,.ps-cond select:focus,.contents-select:f
 .conflict .modal-text{margin:0}
 @media (max-width:650px){.conflict-grid{grid-template-columns:1fr}}
 
-/* ---------- Buscador con botón de limpiar ---------- */
+/* ---------- Search with clear button ---------- */
 .search-wrap{position:relative}
 .search-wrap input{padding-right:30px!important}
 .search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:0;border-radius:50%;background:rgba(120,120,128,.28);color:var(--text);font-size:13px;line-height:18px;padding:0;cursor:pointer;display:none;text-align:center}
 .search-clear:hover{background:rgba(120,120,128,.45)}
 .search-wrap.has-value .search-clear{display:block}
 
-/* ---------- Selector de libros ---------- */
+/* ---------- Book picker ---------- */
 .picker{padding:18px;display:grid;gap:12px}
 .picker .modal-text{margin:0}
 .pick-head{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;padding:0 4px}
@@ -657,6 +657,6 @@ select:focus,.side-section select:focus,.ps-cond select:focus,.contents-select:f
 :root[data-theme="dark"] .warn-icon{color:#ffd60a}
 button:disabled{opacity:.5;cursor:default}
 
-/* ---------- Herramientas de prompts y copia de seguridad ---------- */
+/* ---------- Prompt and backup tools ---------- */
 .pc-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .backup-actions{display:flex;gap:8px;flex-wrap:wrap}

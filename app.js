@@ -3,8 +3,8 @@ const SUGGEST_KEY="kdp-book-manager-suggestions";
 const DB_NAME="kdp-book-manager-files";
 const ARCHIVED_OPEN_KEY="kdp-archived-open";
 const WIP="✏️ WIP",ARCHIVED="📁 Archived";
-const STATUSES=[WIP,"📗 Ready for KDP","⏳ Waiting KDP","🚀 Published",ARCHIVED];
-const LEGACY_STATUS={"Idea":WIP,"Research":WIP,"Outline":WIP,"Writing":WIP,"Editing":WIP,"Formatting":WIP,"Paused":ARCHIVED,"Blocked":ARCHIVED};
+const STATUSES=[WIP,"📗 Ready for ePub","⏳ Waiting ePub","🚀 Published",ARCHIVED];
+const LEGACY_STATUS={"Ready for KDP":"📗 Ready for ePub","Waiting KDP":"⏳ Waiting ePub","Idea":WIP,"Research":WIP,"Outline":WIP,"Writing":WIP,"Editing":WIP,"Formatting":WIP,"Paused":ARCHIVED,"Blocked":ARCHIVED};
 function normalizeStatus(s){
   if(STATUSES.includes(s))return s;
   const str=String(s||""),label=str.includes(" ")?str.slice(str.indexOf(" ")+1):str;
@@ -20,7 +20,7 @@ const PUB_HEADERS=Object.fromEntries(PUB_FIELDS.map(([k,label])=>[label.toUpperC
 const PROMPTS={
 research:`You are a publishing research assistant.\n\nBOOK IDEA:\n{{title}}\nNICHE:\n{{niche}}\nBOOK TYPE:\n{{type}}\n\nCreate a practical content brief covering: 10 reader problems, 10 reader questions, 10 desired outcomes, common beginner mistakes, topics to cover, topics outside scope, 10 unique angles, suggested table of contents, worksheet ideas, and claims requiring fact checking. Suggest Target reader.\nDo not invent statistics, studies, experts, quotes, or sources. Write in natural American English.`,
 editorial:`You are a professional American English nonfiction editor.\n\nReview this manuscript for grammar, spelling, awkward phrasing, repetition, contradictions, missing information, generic AI-like writing, unsupported factual claims, inconsistent terminology and formatting.\n\nReturn a Markdown report with:\n# Editorial Review\n## Issues\n| Location | Problem | Recommended Change | Severity |\n|---|---|---|---|\n## Assessment: overall score (x/10)\nClarity (x/10):\nConsistency (x/10):\nPractical usefulness (x/10):\nOriginality (x/10):\nReader experience (x/10):\n\nDo not rewrite the entire manuscript.`,
-metadata:`Generate Amazon KDP metadata for:\n\nTITLE: {{title}}\nAUTHOR: {{author}}\nTARGET READER: {{reader}}\nNICHE: {{niche}}\nTYPE: {{type}}\n\nReturn Markdown with a 250–350 word accurate book description, a short text for back cover, 7 keyword phrase ideas, and relevant category ideas.\n\nNo fake bestseller claims, reviews, competitor names or guarantees.\n\nAlso create front and back mater.\n\nFollow this structure:\n\n## Descripton\n\n \`\`\`\n [description]\n \`\`\`\n \n ## Back text\n\n \`\`\`\n [back text]\n \`\`\`\n \n ## Keywords\n \`\`\`\n [keywords]\n \`\`\`\n \n ## Categories\n \`\`\`\n [categories]\n \`\`\`\n \n ## Front matter\n \`\`\`\n [front matter]\n \`\`\`\n \n ## Back matter\n \`\`\`\n [back matter]\n \`\`\` `
+metadata:`Generate ePub metadata for:\n\nTITLE: {{title}}\nAUTHOR: {{author}}\nTARGET READER: {{reader}}\nNICHE: {{niche}}\nTYPE: {{type}}\n\nReturn Markdown with a 250–350 word accurate book description, a short text for back cover, 7 keyword phrase ideas, and relevant category ideas.\n\nNo fake bestseller claims, reviews, competitor names or guarantees.\n\nAlso create front and back mater.\n\nFollow this structure:\n\n## Descripton\n\n \`\`\`\n [description]\n \`\`\`\n \n ## Back text\n\n \`\`\`\n [back text]\n \`\`\`\n \n ## Keywords\n \`\`\`\n [keywords]\n \`\`\`\n \n ## Categories\n \`\`\`\n [categories]\n \`\`\`\n \n ## Front matter\n \`\`\`\n [front matter]\n \`\`\`\n \n ## Back matter\n \`\`\`\n [back matter]\n \`\`\` `
 };
 
 
@@ -40,7 +40,7 @@ const DEFAULT_STEPS=[
   {id:"outline-challenge",title:"Outline (30-Day Challenge)",description:"Day-by-day challenge plan",fileName:"02-outline.txt",conditions:[{field:"type",op:"is",value:"30-Day Challenge"}],prompt:OUTLINE_PROMPTS.challenge,hidden:false},
   {id:"outline-novel",title:"Outline (Novel)",description:"Chapter plot plan",fileName:"02-outline.txt",conditions:[{field:"type",op:"is",value:"Novel"}],prompt:OUTLINE_PROMPTS.novel,hidden:false},
   {id:"editorial",title:"Editorial review",description:"Quality and AI-like filler review",fileName:"05-editorial-review.md",conditions:[],prompt:PROMPTS.editorial,hidden:false},
-  {id:"metadata",title:"KDP metadata",description:"Title, description, keywords and categories",fileName:"07-kdp-metadata.txt",conditions:[],prompt:PROMPTS.metadata,hidden:false}
+  {id:"metadata",title:"ePub metadata",description:"Title, description, keywords and categories",fileName:"07-epub-metadata.txt",conditions:[],prompt:PROMPTS.metadata,hidden:false}
 ];
 const LEGACY_SECTIONS={"RESEARCH":"research","OUTLINE":"outline","EDITORIAL":"editorial","METADATA":"metadata"};
 let promptSteps=loadPromptSteps();
@@ -183,7 +183,7 @@ function showSuggest(name){
   const items=suggestions[list].filter(v=>!q||v.toLowerCase().includes(q)).sort((a,b)=>a.localeCompare(b));
   activeIndex=-1;
   if(!items.length){hideSuggest(name);return}
-  box.innerHTML=items.map(v=>`<div class="suggest-item" data-value="${esc(v)}"><span>${esc(v)}</span><button type="button" class="suggest-remove" data-remove="${esc(v)}" title="Quitar de la lista">×</button></div>`).join("");
+  box.innerHTML=items.map(v=>`<div class="suggest-item" data-value="${esc(v)}"><span>${esc(v)}</span><button type="button" class="suggest-remove" data-remove="${esc(v)}" title="Remove from list">×</button></div>`).join("");
   box.classList.remove("hidden");
 }
 function hideSuggest(name){$(name+"Suggest").classList.add("hidden");activeIndex=-1}
@@ -257,7 +257,7 @@ function renderList(){
     if(f){html+=archived.map(item).join("")}
     else{
       const open=archivedOpen();
-      html+=`<button class="archived-toggle" onclick="toggleArchived()" aria-expanded="${open}"><span class="chev ${open?"open":""}">▸</span>Archivados<span class="archived-count">${archived.length}</span></button>`;
+      html+=`<button class="archived-toggle" onclick="toggleArchived()" aria-expanded="${open}"><span class="chev ${open?"open":""}">▸</span>Archived<span class="archived-count">${archived.length}</span></button>`;
       if(open)html+=archived.map(item).join("");
     }
   }
@@ -303,7 +303,7 @@ function renderPublishing(){
 }
 
 /* ---------- Workflow steps and prompts ---------- */
-/* ---------- Configuración de prompts y pasos del workflow ---------- */
+/* ---------- Prompt configuration and workflow steps ---------- */
 function openPromptConfig(){renderPromptList()}
 function condSummary(s){return (s.conditions||[]).map(c=>`${c.field} ${c.op} "${c.value}"`).join(" & ")||"Always"}
 function renderPromptList(){
@@ -383,7 +383,7 @@ function deletePromptStep(id){
   },true);
 }
 
-/* ---------- Visibilidad, wildcards y workflow ---------- */
+/* ---------- Visibility, wildcards and workflow ---------- */
 function stepVisible(s,b){
   if(s.hidden)return false;
   return (s.conditions||[]).every(c=>{
@@ -438,7 +438,7 @@ function saveTextStep(id){
 }
 
 /* ---------- Export / import ---------- */
-function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n${Object.entries(b.steps||{}).map(([k,v])=>`\n=== STEP ${k} ===\n${v}\n`).join("")}${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
+function bookTxt(b){return `EPUB BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n${Object.entries(b.steps||{}).map(([k,v])=>`\n=== STEP ${k} ===\n${v}\n`).join("")}${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
 
 
 function parseBookTxt(text){
@@ -463,7 +463,7 @@ function parseBookTxt(text){
 }
 
 
-/* ---------- ZIP (sin dependencias) ---------- */
+/* ---------- ZIP (no dependencies) ---------- */
 const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
 function crc32(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=CRC_TABLE[(c^d[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
 function buildZip(entries){
@@ -495,7 +495,7 @@ async function readZip(buf){
   const dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
   let eocd=-1;
   for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}}
-  if(eocd<0)throw new Error("El archivo no es un ZIP válido.");
+  if(eocd<0)throw new Error("The file is not a valid ZIP archive.");
   const count=dv.getUint16(eocd+10,true);let p=dv.getUint32(eocd+16,true);
   const files=new Map();
   for(let n=0;n<count;n++){
@@ -507,7 +507,7 @@ async function readZip(buf){
     let data;
     if(method===0)data=raw;
     else if(method===8)data=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
-    else throw new Error("Método de compresión no soportado.");
+    else throw new Error("Unsupported compression method.");
     if(!name.endsWith("/"))files.set(name,data);
     p+=46+nameLen+extraLen+commentLen;
   }
@@ -516,7 +516,7 @@ async function readZip(buf){
 const MIME={epub:"application/epub+zip",md:"text/markdown",txt:"text/plain",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif"};
 function mimeOf(name){return MIME[name.split(".").pop().toLowerCase()]||"application/octet-stream"}
 
-/* ---------- Export / import de libros completos (.zip) ---------- */
+/* ---------- Export / import of full books (.zip) ---------- */
 async function bookEntries(b,prefix){
   const out=[{name:prefix+"book.txt",data:new TextEncoder().encode(bookTxt(b))}];
   for(const kind of ["book","cover"]){
@@ -532,7 +532,7 @@ async function exportBook(){
   saveBlob(`${fileSafe(b.title)}-book.zip`,buildZip(await bookEntries(b,"")));
   toast("Book exported");
 }
-/* ---------- Selector de libros (export e import) ---------- */
+/* ---------- Book picker (export and import) ---------- */
 function openBookPicker({title,intro,items,confirmLabel,onConfirm}){
   const sel=new Set(items.filter(i=>i.checked!==false).map(i=>String(i.id)));
   openModal(title,`<div class="picker">
@@ -570,7 +570,7 @@ function openBookPicker({title,intro,items,confirmLabel,onConfirm}){
   sync();
 }
 
-/* ---------- Exportar libros ---------- */
+/* ---------- Export books ---------- */
 function openExportPicker(){
   if(!visibleBooks.length)return showNotice("No books","There are no books in the current list to export.");
   const q=$("searchInput").value.trim(),f=$("statusFilter").value;
@@ -588,19 +588,19 @@ async function exportBooks(ids){
   if(!list.length)return;
   const entries=[];
   for(const [i,b] of list.entries())entries.push(...await bookEntries(b,`${String(i+1).padStart(2,"0")}-${fileSafe(b.title)}/`));
-  saveBlob("kdp-books.zip",buildZip(entries));
+  saveBlob("epub-books.zip",buildZip(entries));
   toast(`Exported ${list.length} book${list.length===1?"":"s"}`);
 }
 
-/* ---------- Prompts: exportar e importar todos ---------- */
-/* ---------- Helpers generales ---------- */
+/* ---------- Prompts: export and import all ---------- */
+/* ---------- General helpers ---------- */
 function fmtDate(iso){
   const d=new Date(iso);if(isNaN(d))return "";
   const p=n=>String(n).padStart(2,"0");
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/* ---------- Exportar / importar elementos con selector y conflictos ---------- */
+/* ---------- Export / import items with picker and conflicts ---------- */
 function openItemExport({kind,list,fileName,wrap,describe}){
   openBookPicker({
     title:`Export ${kind}s`,
@@ -669,11 +669,11 @@ function openItemImport({kind,incoming,existing,keys,describe,apply}){
   });
 }
 
-/* ---------- Prompts: exportar e importar ---------- */
+/* ---------- Prompts: export and import ---------- */
 function exportPrompts(){
   openItemExport({
-    kind:"prompt step",list:promptSteps,fileName:"kdp-prompts.json",
-    wrap:steps=>({type:"kdp-prompts",version:1,steps}),
+    kind:"prompt step",list:promptSteps,fileName:"epub-prompts.json",
+    wrap:steps=>({type:"epub-prompts",version:1,steps}),
     describe:x=>({label:x.title,detail:`${x.hidden?"Hidden · ":""}${condSummary(x)}`})
   });
 }
@@ -691,7 +691,7 @@ function importPrompts(){
   });
 }
 
-/* ---------- Plantillas: configurar, exportar e importar ---------- */
+/* ---------- Templates: configure, export and import ---------- */
 let templateDraft=null;
 function openTemplateConfig(){renderTemplateList()}
 function renderTemplateList(){
@@ -746,8 +746,8 @@ function deleteTemplate(id){
 }
 function exportTemplates(){
   openItemExport({
-    kind:"template",list:templates,fileName:"kdp-templates.json",
-    wrap:list=>({type:"kdp-templates",version:1,templates:list}),
+    kind:"template",list:templates,fileName:"epub-templates.json",
+    wrap:list=>({type:"epub-templates",version:1,templates:list}),
     describe:x=>({label:x.label,detail:`${x.size} · margin ${x.margin}`})
   });
 }
@@ -764,7 +764,7 @@ function importTemplates(){
   });
 }
 
-/* ---------- Copia de seguridad completa ---------- */
+/* ---------- Full backup ---------- */
 const SETTINGS_KEYS=()=>[KEY,SUGGEST_KEY,PROMPT_KEY,TEMPLATES_KEY,THEME_KEY];
 function idbDump(){
   return openDb().then(d=>new Promise((res,rej)=>{
@@ -785,7 +785,7 @@ function idbRestore(records){
 }
 async function createBackup(){
   const enc=new TextEncoder(),entries=[];
-  const manifest={app:"kdp-book-manager",version:1,createdAt:new Date().toISOString(),localStorage:{},idb:[]};
+  const manifest={app:"epub-book-manager",version:1,createdAt:new Date().toISOString(),localStorage:{},idb:[]};
   for(const k of SETTINGS_KEYS()){const v=localStorage.getItem(k);if(v!==null)manifest.localStorage[k]=v}
   let n=0;
   for(const {key,value} of await idbDump()){
@@ -798,7 +798,7 @@ async function createBackup(){
     }
   }
   entries.unshift({name:"manifest.json",data:enc.encode(JSON.stringify(manifest))});
-  saveBlob(`kdp-backup-${new Date().toISOString().slice(0,10)}.zip`,buildZip(entries));
+  saveBlob(`epub-backup-${new Date().toISOString().slice(0,10)}.zip`,buildZip(entries));
   toast("Backup created");
 }
 async function restoreBackup(file){
@@ -806,7 +806,7 @@ async function restoreBackup(file){
   const raw=files.get("manifest.json");
   if(!raw)throw new Error("This file is not a valid backup.");
   const manifest=JSON.parse(new TextDecoder().decode(raw));
-  if(manifest.app!=="kdp-book-manager")throw new Error("This file is not a valid backup.");
+  if(!["epub-book-manager","kdp-book-manager"].includes(manifest.app))throw new Error("This file is not a valid backup.");
   const records=manifest.idb.map(r=>r.kind==="blob"
     ?{key:r.key,value:{name:r.fileName,type:r.type,size:r.size,blob:new Blob([files.get(r.file)],{type:r.type})}}
     :{key:r.key,value:r.value});
@@ -835,7 +835,7 @@ function openBackup(){
   };
 }
 
-/* ---------- Importación: detección de duplicados ---------- */
+/* ---------- Import: duplicate detection ---------- */
 async function readZipBooks(file){
   const files=await readZip(await file.arrayBuffer());
   const roots=[...files.keys()].filter(n=>n==="book.txt"||n.endsWith("/book.txt"));
@@ -931,7 +931,7 @@ $("importInput").onchange=async e=>{
       if(/\.zip$/i.test(f.name))candidates.push(...await readZipBooks(f));
       else{
         const t=await f.text();
-        if(f.name==="book.txt"||t.startsWith("KDP BOOK MANAGER"))candidates.push({book:parseBookTxt(t),chapters:null,attachments:null});
+        if(f.name==="book.txt"||(t.startsWith("EPUB BOOK MANAGER")||t.startsWith("KDP BOOK MANAGER")))candidates.push({book:parseBookTxt(t),chapters:null,attachments:null});
       }
     }
   }catch(err){
@@ -966,7 +966,7 @@ $("importInput").onchange=async e=>{
   });
 };
 
-/* ---------- Miniaturas de portada en la lista ---------- */
+/* ---------- Cover thumbnails in the list ---------- */
 const coverUrls=new Map();
 async function refreshCovers(){
   for(const url of coverUrls.values())URL.revokeObjectURL(url);
@@ -979,7 +979,7 @@ async function refreshCovers(){
   renderList();
 }
 
-/* ---------- Pestaña Build: capítulos, previsualización y generación ---------- */
+/* ---------- Build tab: chapters, preview and generation ---------- */
 const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}`;
 const BASE_CSS=`body{margin:0;color:#222;background:#fdfdfb;line-height:1.6}img{max-width:100%}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}blockquote{margin:1em 2em;font-style:italic;color:#444}section{padding-top:20px;margin-top:28px;border-top:1px solid #e5e5e0}.title-page{text-align:center;padding:40px 0;border:0;margin:0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}@media screen{body{max-width:680px;margin:0 auto;padding:24px}}@media print{body{background:#fff}section{border:0;margin:0;padding-top:0}.title-page{break-after:page;padding:30% 0 0}section.chapter{break-before:page}}`;
 const TEMPLATES_KEY="kdp-templates-v1";
@@ -1006,7 +1006,7 @@ function splitList(s){return String(s||"").split(/[\n,]/).map(x=>x.trim()).filte
 function chapterTitle(c){const h=c.md.match(/^#\s+(.+)$/m);return h?h[1].trim():c.name.replace(/\.(md|txt)$/i,"").replace(/[-_]+/g," ")}
 function withH1(md,title){const first=md.trimStart().split("\n")[0];return /^#\s+/.test(first)?md:`# ${title}\n\n${md}`}
 
-/* Markdown -> HTML (subconjunto suficiente para libros) */
+/* Markdown -> HTML (subset sufficient for books) */
 function inline(s){
   const codes=[];
   let x=esc(s).replace(/`([^`]+)`/g,(_,c)=>{codes.push(c);return `\u0000${codes.length-1}\u0000`});
@@ -1050,7 +1050,7 @@ function plain(md){
     .replace(/^(\s*)[*+]\s+/gm,"$1- ").replace(/^\s*(\*\*\*|---|___)\s*$/gm,"* * *");
 }
 
-/* Enlaza las entradas del índice del frontmatter con su capítulo */
+/* Links the front matter index entries to their chapter */
 function linkIndex(md,titles,hrefOf){
   if(!md)return md;
   const order=titles.map((t,i)=>({t:t.trim(),i})).filter(x=>x.t).sort((a,b)=>b.t.length-a.t.length);
@@ -1073,13 +1073,13 @@ function buildParts(m,target){
   };
 }
 
-/* Datos para generar: metadatos guardados, capítulos y portada */
+/* Data for generation: saved metadata, chapters and cover */
 async function buildModel(b){
   const [chapters,cover]=await Promise.all([getChapters(b.id),getFile(`${b.id}:cover`)]);
   return{title:b.title,author:b.author,lang:b.language||"en-US",pub:b.publishing||blankPublishing(),chapters,cover,id:b.id};
 }
 
-/* Formatos de salida */
+/* Output formats */
 function buildMarkdown(m){
   const p=buildParts(m,"md");
   const parts=[`# ${m.title}`];
@@ -1199,7 +1199,7 @@ ${pages.map(pg=>`<itemref idref="${pg.id}"/>`).join("\n")}
   return new Blob([buildZip(entries)],{type:"application/epub+zip"});
 }
 
-/* Interfaz de la pestaña */
+/* Tab interface */
 async function getChapters(id){return (await getFile(`${id}:chapters`))||[]}
 async function setChapters(id,list){await putFile(`${id}:chapters`,list)}
 function byName(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true})}
@@ -1285,7 +1285,7 @@ async function exportBuild(fmt){
 
 function syncArchiveField(){$("archiveField").classList.toggle("hidden",$("statusInput").value!==ARCHIVED)}
 
-/* ---------- Ordenar capítulos por arrastre ---------- */
+/* ---------- Sort chapters by drag and drop ---------- */
 let dragFrom=null;
 function chapterDragStart(e,i){
   dragFrom=i;
@@ -1314,7 +1314,7 @@ async function chapterDrop(e,i){
   renderBuild();
 }
 
-/* ---------- Crear y editar capítulos ---------- */
+/* ---------- Create and edit chapters ---------- */
 async function openChapterEditor(chapterId){
   const id=selectedId;if(!id)return;
   const list=await getChapters(id);
@@ -1386,7 +1386,7 @@ $("exportBookBtn").onclick=exportBook;
 $("exportAllBtn").onclick=openExportPicker;
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
 
-/* ---------- Tema (día / noche / sistema) ---------- */
+/* ---------- Theme (day / night / system) ---------- */
 const THEME_KEY="kdp-theme";
 const systemDark=window.matchMedia("(prefers-color-scheme: dark)");
 function applyTheme(){
@@ -1398,7 +1398,7 @@ function applyTheme(){
 function setTheme(pref){localStorage.setItem(THEME_KEY,pref);applyTheme()}
 systemDark.addEventListener("change",applyTheme);
 
-/* ---------- Menú de la barra lateral ---------- */
+/* ---------- Sidebar menu ---------- */
 $("menuBtn").onclick=e=>{e.stopPropagation();$("appMenu").classList.toggle("hidden")};
 document.addEventListener("click",e=>{if(!e.target.closest(".menu-wrap"))$("appMenu").classList.add("hidden")});
 $("appMenu").addEventListener("click",e=>{
@@ -1410,6 +1410,25 @@ $("importBtn").onclick=()=>$("importInput").click();
 $("promptsBtn").onclick=openPromptConfig;
 $("templatesBtn").onclick=openTemplateConfig;
 $("backupBtn").onclick=openBackup;
+
+/* ---------- Install app (PWA) ---------- */
+let deferredInstall=null;
+const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("installBtn").classList.remove("hidden")});
+window.addEventListener("appinstalled",()=>{deferredInstall=null;$("installBtn").classList.add("hidden");toast("App installed")});
+async function installApp(){
+  if(isStandalone())return showNotice("Already installed","ePub Book Manager is already running as an app.");
+  if(deferredInstall){
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall=null;
+    return;
+  }
+  if(location.protocol==="file:")return showNotice("Install app","To install the app, open it from its website (https://epub-book-manager.netlify.app) or from localhost.");
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent))return showNotice("Install app","Tap the Share button in Safari, then choose \"Add to Home Screen\".");
+  showNotice("Install app","Use the install icon in the address bar, or the browser menu, and choose \"Install ePub Book Manager\".");
+}
+$("installBtn").onclick=installApp;
 
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;

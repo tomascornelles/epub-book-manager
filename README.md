@@ -1,22 +1,22 @@
-# KDP Book Manager
+# ePub Book Manager
 
-A local-first, installable web app for planning, writing, formatting and exporting Amazon KDP books, with an AI-assisted workflow built around prompt steps you can copy into any assistant.
+A local-first, installable web app for planning, writing, formatting and exporting ePub books, with an AI-assisted workflow built around prompt steps you can copy into any assistant.
 
-**Live app:** <https://kdp-book-manager.netlify.app>
+**Live app:** <https://epub-book-manager.netlify.app>
 **Author:** [tomascornelles](https://github.com/tomascornelles)
 
-KDP Book Manager runs entirely in the browser. There is no server, no account and no cloud sync: your books live in your browser's storage, and you control backups through explicit export and import.
+ePub Book Manager runs entirely in the browser. There is no server, no account and no cloud sync: your books live in your browser's storage, and you control backups through explicit export and import.
 
 ---
 
 ## Features
 
-- **Book library** with search, status filter, and archived books collapsed at the bottom of the list (they stay included in exports).
-- **Status tracking:** `✏️ WIP`, `📗 Ready for KDP`, `⏳ Waiting KDP`, `🚀 Published`, `📁 Archived` (archiving asks for a reason).
+- **Book library** with search, a status filter, and archived books collapsed at the bottom of the list (they are still included in exports).
+- **Status tracking:** `✏️ WIP`, `📗 Ready for ePub`, `⏳ Waiting ePub`, `🚀 Published`, `📁 Archived`. Archiving asks for a reason.
 - **AI-assisted workflow:** configurable prompt steps. View a prompt, paste the response, and keep it with the book. Steps appear or hide depending on the book's type, niche, status, language or author.
 - **Prompt placeholders** such as `{{title}}`, `{{author}}`, `{{description}}`, `{{frontMatter}}` and `{{step.ID}}` to reuse earlier answers.
 - **Publishing metadata:** Amazon description, back cover text, tags, categories, front matter and back matter.
-- **Chapters:** upload `.md` and `.txt` files, create and edit chapters with a Code/Preview editor, reorder by drag and drop or with ▲▼, sort by name.
+- **Chapters:** upload `.md` and `.txt` files, create and edit chapters with a Code/Preview editor, reorder by drag and drop or with ▲▼, and sort by name.
 - **Build and preview:** table of contents navigation, selectable templates, and output as **EPUB**, **Markdown**, **TXT** or **PDF** (PDF uses the browser's print dialog, with a full-page cover when one is attached).
 - **Suggestions:** author, niche, type and language fields autocomplete from values you have used before.
 - **Export and import:** export selected books to a ZIP, import books with conflict detection, and export or import prompt steps and templates.
@@ -28,9 +28,9 @@ KDP Book Manager runs entirely in the browser. There is no server, no account an
 
 ## Install as an app
 
-KDP Book Manager is a Progressive Web App (PWA). To install it:
+ePub Book Manager is a Progressive Web App (PWA). To install it:
 
-- **Chrome or Edge (desktop):** open <https://kdp-book-manager.netlify.app> and click the install icon in the address bar.
+- **Chrome or Edge (desktop):** open <https://epub-book-manager.netlify.app> and click the install icon in the address bar, or use *☰ Menu → Install app*.
 - **Chrome (Android):** open the site and choose *Install app* or *Add to Home screen*.
 - **Safari (iOS / iPadOS):** open the site, tap *Share*, then *Add to Home Screen*.
 
@@ -44,8 +44,8 @@ Once installed, it opens in its own window without browser controls and works of
 
 ### Use the hosted version
 
-1. Open <https://kdp-book-manager.netlify.app>.
-2. Install it (see above) or simply use it in the browser.
+1. Open <https://epub-book-manager.netlify.app>.
+2. Install it (see above), or simply use it in the browser.
 3. Click **＋ New book** to start.
 
 ### Run it locally
@@ -53,8 +53,8 @@ Once installed, it opens in its own window without browser controls and works of
 No build step and no dependencies are required.
 
 ```bash
-git clone https://github.com/tomascornelles/kdp-book-manager.git
-cd kdp-book-manager
+git clone https://github.com/tomascornelles/epub-book-manager.git
+cd epub-book-manager
 # Option A: open index.html directly in your browser (no offline install)
 # Option B: serve the folder, which enables installation and offline mode
 python3 -m http.server 8080
@@ -66,10 +66,10 @@ python3 -m http.server 8080
 ## Using the app
 
 ### Workflow tab
-Each step is a card with **View prompt** and **Paste / Edit response** actions. A card turns green once it contains a response. Prompt steps are managed from *Menu → Configure prompts*, where you can create, edit, hide, delete, export and import them.
+Each step is a card with **View prompt** and **Paste / Edit response** actions. A card turns green once it contains a response. Prompt steps are managed from *☰ Menu → Configure prompts*, where you can create, edit, hide, delete, export and import them.
 
 ### Publishing tab
-Attach the book file (`.epub` or `.md`) and the cover image. Both are stored in IndexedDB. Fill in the metadata fields that KDP asks for.
+Attach the book file (`.epub` or `.md`) and the cover image. Both are stored in IndexedDB. Fill in the metadata fields that your publishing platform asks for.
 
 ### Chapters tab
 Upload several `.md` or `.txt` files at once, or create chapters from scratch. Chapter order drives the table of contents and the generated files. The list grows with its content, so the whole page scrolls naturally.
@@ -87,6 +87,7 @@ Upload several `.md` or `.txt` files at once, or create chapters from scratch. C
 - **Import books:** choose the books to import. A ⚠ warning flags a book whose ID already exists, and you choose which version to keep.
 - **Configure prompts / templates:** create, edit and remove, plus *Export all* and *Import all* with the same conflict handling.
 - **Backup:** create a full backup or restore one (this replaces all current data and reloads the app).
+- **Install app:** installs the PWA when the browser allows it, with instructions when it does not.
 - **Appearance:** Day, Night or System.
 
 ---
@@ -104,7 +105,9 @@ All data stays in the browser that runs the app.
 | `localStorage` | `kdp-theme`, `kdp-archived-open` | Interface preferences |
 | IndexedDB `kdp-book-manager-files` (store `files`) | `${bookId}:book`, `${bookId}:cover`, `${bookId}:chapters` | Attachments and chapters |
 
-Browsers keep storage separately for each origin. Data created at `file://…/index.html`, `localhost:8080` and `kdp-book-manager.netlify.app` **are three different sets of data**. To move your work between them, use *Menu → Backup* in the old location and restore it in the new one.
+These keys keep the names they had before the rename, so existing data is preserved.
+
+Browsers keep storage separately for each origin. Data created at `file://…/index.html`, `localhost:8080` and `epub-book-manager.netlify.app` **are three different sets of data**. To move your work between them, use *☰ Menu → Backup* in the old location and restore it in the new one.
 
 Clearing site data in the browser deletes your books. Make regular backups.
 
@@ -113,7 +116,7 @@ Clearing site data in the browser deletes your books. Make regular backups.
 ## Import, export and backup formats
 
 - **Book export** creates a ZIP with one folder per book, containing `book.txt` (metadata, prompt responses and publishing fields), the cover and the chapter files.
-- **Backup** creates a ZIP with a `manifest.json` that lists the saved settings and IndexedDB records, plus the binary blobs. Restoring a backup replaces everything currently stored.
+- **Backup** creates a ZIP with a `manifest.json` that lists the saved settings and IndexedDB records, plus the binary blobs. Restoring a backup replaces everything currently stored. Backups and exports created before the rename remain importable.
 - ZIP files are generated and read without external libraries (stored entries, and deflate through the browser's `DecompressionStream`).
 
 ---
@@ -121,18 +124,20 @@ Clearing site data in the browser deletes your books. Make regular backups.
 ## Project structure
 
 ```
-kdp-book-manager/
+epub-book-manager/
 ├── index.html            # App shell, sidebar, editor layout, modal, PWA links
 ├── app.js                # All application logic (state, rendering, storage, EPUB/PDF generation, ZIP)
 ├── styles.css            # macOS-inspired styling with Day/Night themes
 ├── manifest.webmanifest  # PWA manifest (name, icons, colours, display mode)
 ├── sw.js                 # Service worker: offline cache of the app shell
 ├── _headers              # Netlify headers (no-cache for sw.js)
+├── favicon.ico           # Browser tab icon (16, 32, 48 px)
 ├── icons/
 │   ├── icon-192.png
 │   ├── icon-512.png
 │   ├── icon-maskable-512.png
-│   └── apple-touch-icon.png
+│   ├── apple-touch-icon.png
+│   └── favicon-32.png
 └── README.md
 ```
 
