@@ -15,12 +15,13 @@ ePub Book Manager runs entirely in the browser. There is no server, no account a
 - **Status tracking:** `✏️ WIP`, `📗 Ready`, `⏳ Waiting`, `🚀 Published`, `📁 Archived`. Archiving asks for a reason.
 - **AI-assisted workflow:** configurable prompt steps. View a prompt, paste the response, and keep it with the book. Steps appear or hide depending on the book's type, niche, status, language or author.
 - **Prompt placeholders** such as `{{title}}`, `{{author}}`, `{{description}}`, `{{frontMatter}}` and `{{step.ID}}` to reuse earlier answers.
-- **Publishing metadata:** Publisher description, back cover text, keywords, categories, front matter and back matter.
+- **Metadata:** Publisher description, back cover text, keywords, categories, front matter and back matter.
 - **Chapters:** upload `.md` and `.txt` files, create and edit chapters with a Code/Preview editor, reorder by drag and drop or with ▲▼, and sort by name.
 - **Build and preview:** table of contents navigation, selectable templates, and output as **EPUB**, **Markdown**, **TXT** or **PDF** (PDF uses the browser's print dialog, with a full-page cover when one is attached).
 - **Suggestions:** author, niche, type and language fields autocomplete from values you have used before.
 - **Export and import:** export selected books to a ZIP, import books with conflict detection, and export or import prompt steps and templates.
 - **Backup and restore:** a single ZIP containing all settings, books, attachments and chapters.
+- **Multi-tab sync:** changes made in one tab appear in other open tabs of the same browser. Unsaved edits in the open book are never overwritten.
 - **Day, Night and System themes.**
 - **Installable and offline-ready:** install it as a desktop or mobile app and keep working without a connection.
 
@@ -68,7 +69,7 @@ python3 -m http.server 8080
 ### Workflow tab
 Each step is a card with **Prompt** and **Response** actions. A card turns green once it contains a response. Prompt steps are managed from *☰ Menu → Configure prompts*, where you can create, edit, reorder by drag and drop, hide, delete, export and import them.
 
-### Publishing tab
+### Metadata tab
 Attach the book file (`.epub` or `.md`) and the cover image. Both are stored in IndexedDB. Fill in the metadata fields that your publishing platform asks for.
 
 ### Chapters tab
@@ -171,6 +172,7 @@ After deploying a new version, the service worker updates the cache in the backg
 
 - **No cloud sync.** Data stays in one browser profile. Use Backup to move it between computers.
 - **Per-origin storage** (see [Data and storage](#data-and-storage)).
+- **Multi-tab sync** only works within one browser profile. If a book has unsaved changes in one tab and is changed in another, the first tab shows a notice instead of applying the change; saving there overwrites the other version.
 - **PDF generation** uses the browser's print engine, so the result depends on the browser and its print settings.
 - **Offline installation** needs HTTPS or `localhost`.
 

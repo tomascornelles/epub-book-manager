@@ -59,8 +59,8 @@
   </div>
   <nav class="tabs">
     <button class="tab active" data-tab="workflow">Workflow</button>
-    <button class="tab" data-tab="publishing">Publishing</button>
     <button class="tab" data-tab="chapters">Chapters</button>
+    <button class="tab" data-tab="publishing">Metadata</button>
     <button class="tab" data-tab="build">Build</button>
   </nav>
   </div>
@@ -77,12 +77,11 @@
       <label for="typeInput">Type</label>
       <div class="combo"><input id="typeInput" autocomplete="off" placeholder="Type or choose a type"><div id="typeSuggest" class="suggest hidden"></div></div>
     </div>
-    <label>Price<div class="price-wrap"><span>$</span><input id="priceInput" type="number" step="0.01" min="0" placeholder="0.00"></div></label>
     <div class="field">
       <label for="languageInput">Language</label>
       <div class="combo"><input id="languageInput" autocomplete="off" placeholder="en-US"><div id="languageSuggest" class="suggest hidden"></div></div>
     </div>
-    <label>Target reader<input id="readerInput"></label>
+    <label class="span-all">Target reader<textarea id="readerInput" rows="2"></textarea></label>
     <label id="archiveField" class="archive-field hidden">Archive reason<input id="archiveReasonInput" placeholder="Why is this book archived?"></label>
   </div>
 

@@ -35,7 +35,7 @@ novel:`You are a professional fiction book editor.\n\nTITLE:\n{{title}}\n\nTARGE
 const PROMPT_KEY="epub-prompt-steps-v1";
 const FIELDS=[["type","Type"],["niche","Niche"],["status","Status"],["language","Language"],["author","Author"]];
 const OPS=["is","is not","contains"];
-const WILDCARDS=["title","author","reader","niche","type","language","status","price","archive-reason","description","backText","tags","categories","frontMatter","backMatter","chapter","purpose"];
+const WILDCARDS=["title","author","reader","niche","type","language","status","archive-reason","description","backText","tags","categories","frontMatter","backMatter","chapter","purpose"];
 const DEFAULT_STEPS=[
   {id:"research",title:"Research",description:"Content research brief",fileName:"01-research.txt",conditions:[],prompt:PROMPTS.research,hidden:false},
   {id:"outline",title:"Outline",description:"Book structure and chapter plan",fileName:"02-outline.txt",conditions:[{field:"type",op:"is not",value:"30-Day Challenge"},{field:"type",op:"is not",value:"Novel"}],prompt:OUTLINE_PROMPTS.workbook,hidden:false},
@@ -67,7 +67,7 @@ function download(name,text){saveBlob(name,new Blob([text],{type:"text/plain;cha
 
 /* ---------- Modals ---------- */
 let modalOnClose=null;
-function closeModal(){const back=modalOnClose;modalOnClose=null;if(back)return back();$("modal").classList.add("hidden")}
+function closeModal(){const back=modalOnClose;modalOnClose=null;if(back)return back();$("modal").classList.add("hidden");if(remotePending){remotePending=false;applyRemote()}}
 function openModal(title,body){modalOnClose=null;$("modalTitle").textContent=title;$("modalBody").innerHTML=body;$("modal").classList.remove("hidden")}
 function showNotice(title,message){
   openModal(title,`<div class="form-editor"><p class="modal-text">${esc(message)}</p><div class="confirm-actions"><button class="primary" id="okBtn">OK</button></div></div>`);
@@ -118,10 +118,11 @@ async function migrateOldDb(db){
   }catch(e){console.error("Attachment migration failed; will retry on next load:",e)}
   return db;
 }
+const SYNC=typeof BroadcastChannel!=="undefined"?new BroadcastChannel("epub-book-manager-sync"):null;
 function fileOp(mode,fn){
   return openDb().then(d=>new Promise((res,rej)=>{
     const t=d.transaction("files",mode),req=fn(t.objectStore("files"));
-    t.oncomplete=()=>res(req?req.result:undefined);
+    t.oncomplete=()=>{if(mode==="readwrite")SYNC?.postMessage("files");res(req?req.result:undefined)};
     t.onerror=()=>rej(t.error);
   }));
 }
@@ -188,7 +189,7 @@ function normalize(b){
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]").map(normalize)}catch{return[]}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(books));renderList()}
 function blankPublishing(){return Object.fromEntries(PUB_FIELDS.map(([k])=>[k,""]))}
-function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",language:"en-US",status:STATUSES[0],archiveReason:"",created:now,updated:now,steps:{},publishing:blankPublishing()}}
+function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",language:"en-US",status:STATUSES[0],archiveReason:"",created:now,updated:now,steps:{},publishing:blankPublishing()}}
 function selected(){return books.find(b=>b.id===selectedId)}
 
 /* ---------- Autocomplete suggestions ---------- */
@@ -262,7 +263,6 @@ function saveCurrent(silent=false){
   b.author=$("authorInput").value.trim();
   b.niche=$("nicheInput").value.trim();
   b.type=$("typeInput").value.trim();
-  b.price=$("priceInput").value;
   b.language=$("languageInput").value.trim()||"en-US";
   b.reader=$("readerInput").value;
   b.status=$("statusInput").value;
@@ -311,7 +311,6 @@ function openBook(id){
   $("authorInput").value=b.author;
   $("nicheInput").value=b.niche;
   $("typeInput").value=b.type;
-  $("priceInput").value=b.price;
   $("languageInput").value=b.language||"en-US";
   $("readerInput").value=b.reader;
   $("statusInput").value=b.status;
@@ -326,7 +325,7 @@ function setTab(name){
   if(name==="chapters"||name==="build")renderBuild();
 }
 
-/* ---------- Publishing tab ---------- */
+/* ---------- Metadata tab ---------- */
 function renderPublishing(){
   const b=selected();if(!b)return;
   $("publishingTab").innerHTML=`<div class="pub-grid">
@@ -458,7 +457,7 @@ function stepVisible(s,b){
 function wildcardMap(b){
   const map={
     title:b.title,author:b.author,reader:b.reader,niche:b.niche,type:b.type,language:b.language,
-    status:b.status,price:b.price,"archive-reason":b.archiveReason||"",
+    status:b.status,"archive-reason":b.archiveReason||"",
     chapter:"[CHAPTER NUMBER AND TITLE]",purpose:"[CHAPTER PURPOSE]"
   };
   for(const [k,v] of Object.entries(b.publishing||{}))map[k]=v;
@@ -510,7 +509,7 @@ function saveTextStep(id){
 }
 
 /* ---------- Export / import ---------- */
-function bookTxt(b){return `EPUB BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n${Object.entries(b.steps||{}).map(([k,v])=>`\n=== STEP ${k} ===\n${v}\n`).join("")}${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
+function bookTxt(b){return `EPUB BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n${Object.entries(b.steps||{}).map(([k,v])=>`\n=== STEP ${k} ===\n${v}\n`).join("")}${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
 
 
 function parseBookTxt(text){
@@ -941,7 +940,7 @@ async function commitBook(c){
 }
 function bookDiffs(cur,curCh,inc,incCh){
   const diffs=[];
-  const fields={title:"Title",author:"Author",niche:"Niche",type:"Type",reader:"Target reader",price:"Price",language:"Language",status:"Status",archiveReason:"Archive reason"};
+  const fields={title:"Title",author:"Author",niche:"Niche",type:"Type",reader:"Target reader",language:"Language",status:"Status",archiveReason:"Archive reason"};
   for(const k in fields)if(String(cur[k]??"")!==String(inc[k]??""))diffs.push(fields[k]);
   for(const [k,label] of PUB_FIELDS)if(String(cur.publishing?.[k]??"")!==String(inc.publishing?.[k]??""))diffs.push(label);
   for(const k of new Set([...Object.keys(cur.steps||{}),...Object.keys(inc.steps||{})]))
@@ -1547,6 +1546,37 @@ document.addEventListener("keydown",e=>{
   if(!$("modal").classList.contains("hidden"))closeModal();
   $("appMenu").classList.add("hidden");
 });
+/* ---------- Sincronización entre pestañas ----------
+ * localStorage: evento "storage" del navegador. IndexedDB: BroadcastChannel (postMessage en fileOp).
+ * No se pisa lo que el usuario está editando: si hay cambios sin guardar o un modal abierto,
+ * los cambios remotos se aplican al cerrar el modal o se avisa. */
+let remotePending=false,syncTimer=null;
+function formDirty(){
+  const b=selected();if(!b)return false;
+  const t=id=>$(id).value.trim();
+  const checks=[
+    [t("titleInput")||"Untitled",b.title],[t("authorInput"),b.author],[t("nicheInput"),b.niche],
+    [t("typeInput"),b.type],[t("languageInput")||"en-US",b.language||"en-US"],
+    [$("readerInput").value,b.reader],[$("statusInput").value,b.status],[t("archiveReasonInput"),b.archiveReason||""]
+  ];
+  if(checks.some(([a,c])=>a!==String(c??"")))return true;
+  return PUB_FIELDS.some(([k])=>$("pub_"+k).value!==String((b.publishing||{})[k]??""));
+}
+function applyRemote(){
+  books=load();suggestions=loadSuggestions();promptSteps=loadPromptSteps();templates=loadTemplates();
+  applyTheme();
+  renderList();
+  refreshCovers();
+  if(!selectedId)return;
+  if($("modal")&&!$("modal").classList.contains("hidden")){remotePending=true;return}
+  if(!selected()){showEmpty();toast("This book was deleted in another tab");return}
+  if(formDirty()){toast("This book was changed in another tab. Save to overwrite, or reopen it to see the other changes.");return}
+  openBook(selectedId);
+}
+function scheduleRemote(){clearTimeout(syncTimer);syncTimer=setTimeout(applyRemote,60)}
+window.addEventListener("storage",e=>{if(e.key&&String(e.key).startsWith("epub-"))scheduleRemote()});
+SYNC?.addEventListener("message",scheduleRemote);
+
 document.addEventListener("click",async e=>{
   const btn=e.target.closest(".code-copy");if(!btn)return;
   const text=btn.parentElement.querySelector("code").textContent;

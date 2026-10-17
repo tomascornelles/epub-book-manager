@@ -136,17 +136,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* Metadata grid */
 .meta-grid{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:16px 18px;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 18px;
   background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);
   padding:20px;margin-bottom:24px;
 }
 .meta-grid label{display:block;font-size:12px;font-weight:500;color:var(--text-2)}
-.meta-grid input{
-  display:block;width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;
+.meta-grid input,.meta-grid textarea{
+  display:block;width:100%;resize:vertical;font:inherit;line-height:1.4;margin-top:6px;padding:8px 10px;border-radius:8px;
   background:var(--field);border:1px solid var(--field-line);color:var(--text);outline:none;
 }
-.meta-grid input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.meta-grid input::placeholder{color:var(--text-3)}
+.meta-grid input:focus,.meta-grid textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.meta-grid input::placeholder,.meta-grid textarea::placeholder{color:var(--text-3)}
 .field{position:relative}
 .combo{position:relative}
 .suggest{
@@ -238,6 +238,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* Responsive */
 @media(max-width:1100px){.meta-grid{grid-template-columns:1fr 1fr}}
+.meta-grid .span-all{grid-column:1 / -1}
 @media(max-width:900px){.sidebar{width:230px}}
 @media(max-width:650px){
   .app{display:block}
@@ -283,7 +284,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* Inset fields */
 .side-section input,.side-section select,
-.meta-grid input,.status-actions select{
+.meta-grid input,.meta-grid textarea,.status-actions select{
   box-shadow:0 1px 2px rgba(0,0,0,.06) inset,0 1px 0 var(--hi);
 }
 
