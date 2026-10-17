@@ -63,7 +63,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   display:flex;flex-direction:column;gap:12px;
   position:sticky;top:0;height:100vh;overflow:hidden;
 }
-.main{flex:1;min-width:0;max-width:1280px;width:100%;padding:36px 40px 56px}
+.main{flex:1;min-width:0;max-width:1280px;width:100%;padding:12px 40px 56px}
 
 /* Sidebar */
 .brand{font-size:15px;font-weight:700;letter-spacing:-.01em;padding:0 6px}
@@ -243,7 +243,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 @media(max-width:650px){
   .app{display:block}
   .sidebar{width:100%;height:auto;position:static;padding-top:20px;border-right:0;border-bottom:1px solid var(--line)}
-  .main{padding:20px 16px}
+  .main{padding:10px 16px 40px}
   .meta-grid{grid-template-columns:1fr}
   .book-header{display:block}
   .status-actions{margin-top:12px}
