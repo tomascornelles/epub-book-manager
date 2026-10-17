@@ -518,3 +518,36 @@ button,input,select,textarea{font:inherit;color:inherit}
 .md-preview pre{background:var(--surface-2);padding:10px;border-radius:8px;overflow:auto;white-space:pre-wrap}
 .md-preview code{font-family:ui-monospace,monospace;font-size:.9em}
 .md-preview blockquote{margin:0 0 .8em;padding-left:12px;border-left:3px solid var(--line);color:var(--text-2)}
+
+/* ---------- Pestaña Chapters: capítulos arriba, vista previa ocupa el resto ---------- */
+#chaptersTab{display:flex;flex-direction:column;gap:16px;min-height:420px}
+#chaptersTab .chapters-card{flex:0 0 auto;margin:0}
+#chaptersTab .chapters-card .chapter-list{max-height:34vh;overflow:auto;padding:0 4px 0 0}
+#buildTab .build-card{flex:1 1 0;min-height:0;display:flex;flex-direction:column;margin:0}
+#buildTab .build-card .card-head{margin-bottom:12px}
+#buildTab .build-preview{flex:1 1 0;min-height:0;position:relative;border-radius:10px;overflow:hidden;background:#fff;box-shadow:var(--depth)}
+#buildTab .build-preview iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+#buildTab .preview-empty{padding:24px}
+
+#buildTab{display:flex;flex-direction:column;gap:16px;min-height:420px}
+
+/* ---------- Desplegable de contenidos en la pestaña Build ---------- */
+.contents-select{
+  -webkit-appearance:none;appearance:none;
+  width:260px;max-width:100%;
+  padding:7px 32px 7px 12px;border-radius:8px;
+  background-color:var(--surface);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;background-size:10px 6px;
+  border:1px solid var(--field-line);box-shadow:0 1px 1px rgba(0,0,0,.04);
+  color:var(--text);outline:none;cursor:pointer;
+}
+.contents-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.contents-select:disabled{opacity:.5;cursor:default}
+.template-select{width:160px}
+
+/* ---------- Controles de generación: formato, plantilla y botón Generate ---------- */
+.build-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.format-group{margin:0;padding:2px}
+.format-group button{padding:5px 12px;text-transform:uppercase;font-size:12px;letter-spacing:.02em}
+.build-controls .primary{padding:6px 16px}

@@ -252,8 +252,8 @@ function openBook(id){
 }
 function setTab(name){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
-  for(const n of ["workflow","publishing","build"])$(n+"Tab").classList.toggle("hidden",n!==name);
-  if(name==="build")renderBuild();
+  for(const n of ["workflow","publishing","chapters","build"])$(n+"Tab").classList.toggle("hidden",n!==name);
+  if(name==="chapters"||name==="build"){fitTab(name+"Tab");renderBuild()}
 }
 
 /* ---------- Publishing tab ---------- */
@@ -444,7 +444,14 @@ async function refreshCovers(){
 
 /* ---------- Pestaña Build: capítulos, previsualización y generación ---------- */
 const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}`;
-const PREVIEW_CSS=`body{font-family:Georgia,serif;line-height:1.6;max-width:680px;margin:0 auto;padding:24px;color:#222;background:#fdfdfb}h1,h2,h3{font-family:Helvetica,Arial,sans-serif}.title-page{text-align:center;padding:40px 0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}section{border-top:1px solid #e5e5e0;padding-top:20px;margin-top:28px}.menu{position:sticky;top:0;background:#fdfdfb;padding:8px 0;border-bottom:1px solid #e5e5e0;font-family:Helvetica,Arial,sans-serif;z-index:1}.menu summary{cursor:pointer;font-weight:600}.menu ol{margin:8px 0 0;padding-left:20px}blockquote{margin:1em 2em;font-style:italic;color:#444}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}img{max-width:100%}`;
+const BASE_CSS=`body{margin:0;color:#222;background:#fdfdfb;line-height:1.6}img{max-width:100%}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}blockquote{margin:1em 2em;font-style:italic;color:#444}section{padding-top:20px;margin-top:28px;border-top:1px solid #e5e5e0}.title-page{text-align:center;padding:40px 0;border:0;margin:0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}@media screen{body{max-width:680px;margin:0 auto;padding:24px}}@media print{body{background:#fff}section{border:0;margin:0;padding-top:0}.title-page{break-after:page;padding:30% 0 0}section.chapter{break-before:page}}`;
+const TEMPLATES={
+  classic:{label:"Classic",size:"A5",margin:"18mm 16mm",css:`body{font-family:Georgia,"Times New Roman",serif}h1,h2,h3{font-family:Georgia,serif;text-align:center}`},
+  modern:{label:"Modern",size:"A4",margin:"20mm 18mm",css:`body{font-family:Helvetica,Arial,sans-serif}h1{color:#3b67f2;border-bottom:3px solid #3b67f2;padding-bottom:.2em}h2,h3{color:#222}.author{color:#3b67f2;font-style:normal}`},
+  minimal:{label:"Minimal",size:"A5",margin:"25mm 22mm",css:`body{font-family:"Times New Roman",serif;font-size:1.05em}h1,h2,h3{font-weight:normal;letter-spacing:.02em}section{border:0}`}
+};
+let currentTemplate="classic";
+let currentFormat="epub";
 
 function xmlEsc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}
@@ -548,17 +555,42 @@ function buildTxt(m){
   if(p.back)parts.push("About this book\n\n"+plain(p.back));
   return parts.join("\n\n* * *\n\n")+"\n";
 }
-function buildHtmlPreview(m,coverUrl){
+function buildDocument(m,coverUrl,tpl,mode){
+  const t=TEMPLATES[tpl]||TEMPLATES.classic;
   const p=buildParts(m,"html");
-  const toc=p.titles.map((t,i)=>`<li><a href="#ch-${i+1}">${esc(t)}</a></li>`).join("");
-  return `<!DOCTYPE html><html lang="${esc(m.lang)}"><head><meta charset="utf-8"><style>${PREVIEW_CSS}</style></head><body>
-<section class="title-page" style="border:0">${coverUrl?`<img class="cover" src="${coverUrl}" alt="">`:""}<h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>
-<details class="menu"><summary>Contents</summary><ol>${toc}</ol></details>
+  const print=mode==="print";
+  const printCss=print?`@page{size:${t.size};margin:${t.margin}}
+@page cover{size:${t.size};margin:0}
+.cover-page{page:cover;break-after:page;margin:0;padding:0;border:0;height:100vh}
+.cover-page img{display:block;width:100%;height:100vh;object-fit:cover}
+.cover-page.no-cover{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 12mm}
+.cover-page.no-cover h1{border:0;padding:0;margin:0 0 .3em;font-size:2.8em}
+.cover-page.no-cover .author{font-size:1.3em}`:"";
+  const titlePage=print
+    ? (coverUrl
+        ? `<section class="cover-page"><img src="${coverUrl}" alt=""></section>`
+        : `<section class="cover-page no-cover"><h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>`)
+    : `<section class="title-page">${coverUrl?`<img class="cover" src="${coverUrl}" alt="">`:""}<h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>`;
+  return `<!DOCTYPE html><html lang="${esc(m.lang)}"><head><meta charset="utf-8"><title>${esc(m.title)}</title><style>${BASE_CSS}${t.css}${printCss}</style></head><body>
+${titlePage}
 ${p.fm?`<section class="front">${mdToHtml(p.fm)}</section>`:""}
 ${p.chapters.map((c,i)=>`<section id="ch-${i+1}" class="chapter">${mdToHtml(c.md)}</section>`).join("")}
 ${p.bm?`<section class="back">${mdToHtml(p.bm)}</section>`:""}
 ${p.back?`<section class="back-cover"><h2>About this book</h2>${mdToHtml(p.back)}</section>`:""}
 </body></html>`;
+}
+function buildHtmlPreview(m,coverUrl,tpl){return buildDocument(m,coverUrl,tpl,"screen")}
+function printPdf(m,tpl){
+  const coverUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
+  const frame=document.createElement("iframe");
+  frame.style.cssText="position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0";
+  frame.onload=()=>{
+    const w=frame.contentWindow;
+    w.focus();w.print();
+    setTimeout(()=>{frame.remove();if(coverUrl)URL.revokeObjectURL(coverUrl)},1500);
+  };
+  frame.srcdoc=buildDocument(m,coverUrl,tpl,"print");
+  document.body.appendChild(frame);
 }
 function xhtml(title,body,lang){
   return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}" lang="${lang}"><head><meta charset="UTF-8"/><title>${xmlEsc(title)}</title><link rel="stylesheet" type="text/css" href="styles.css"/></head><body>${body}</body></html>`;
@@ -626,30 +658,47 @@ ${pages.map(pg=>`<itemref idref="${pg.id}"/>`).join("\n")}
 async function getChapters(id){return (await getFile(`${id}:chapters`))||[]}
 async function setChapters(id,list){await putFile(`${id}:chapters`,list)}
 function byName(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true})}
+let previewUrl=null;
+function fitTab(id){
+  const el=$(id);
+  if(el.classList.contains("hidden"))return;
+  const top=el.getBoundingClientRect().top+window.scrollY;
+  el.style.height=Math.max(420,window.innerHeight-top-24)+"px";
+}
+window.addEventListener("resize",()=>{fitTab("chaptersTab");fitTab("buildTab")});
 async function renderBuild(){
   const id=selectedId;if(!id)return;
-  const list=await getChapters(id);
+  const b=selected();
+  const m=await buildModel(b);
   if(selectedId!==id)return;
-  $("buildTab").innerHTML=`
-  <div class="card">
+  if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}
+  previewUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
+  const count=m.chapters.length;
+  $("chaptersTab").innerHTML=`
+  <div class="card chapters-card">
     <div class="card-head"><h3>Chapters</h3><div class="card-actions">
       <button class="secondary" onclick="$('chaptersInput').click()">Upload .md / .txt</button>
       <button class="secondary" onclick="openChapterEditor()">New chapter</button>
-      <button class="secondary" onclick="sortChapters()" ${list.length<2?"disabled":""}>Sort by name</button>
+      <button class="secondary" onclick="sortChapters()" ${count<2?"disabled":""}>Sort by name</button>
     </div></div>
     <input type="file" id="chaptersInput" accept=".md,.txt" multiple hidden onchange="uploadChapters(this)">
-    ${list.length?`<ol class="chapter-list">${list.map((c,i)=>`<li class="chapter-item" draggable="true" ondragstart="chapterDragStart(event,${i})" ondragover="chapterDragOver(event)" ondrop="chapterDrop(event,${i})" ondragend="chapterDragEnd()"><span class="grip" title="Arrastra para reordenar">⋮⋮</span><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="openChapterEditor('${c.id}')" title="Edit">✎</button><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===list.length-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files. They're added in file-name order, and you can reorder them here.</p>`}
-  </div>
-  <div class="card">
-    <div class="card-head"><h3>Build</h3></div>
-    <div class="build-actions">
-      <button class="secondary" onclick="previewBook()">Preview</button>
-      <button class="primary" onclick="exportBuild('epub')">Generate EPUB</button>
-      <button class="secondary" onclick="exportBuild('md')">Generate Markdown</button>
-      <button class="secondary" onclick="exportBuild('txt')">Generate TXT</button>
-    </div>
-    <p class="muted">Preview and output use the saved metadata and files. The EPUB includes a navigable contents menu and the cover; Markdown and TXT include the front matter and back matter.</p>
+    ${count?`<ol class="chapter-list">${m.chapters.map((c,i)=>`<li class="chapter-item" draggable="true" ondragstart="chapterDragStart(event,${i})" ondragover="chapterDragOver(event)" ondrop="chapterDrop(event,${i})" ondragend="chapterDragEnd()"><span class="grip" title="Arrastra para reordenar">⋮⋮</span><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="openChapterEditor('${c.id}')" title="Edit">✎</button><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===count-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files, or create one. They're added in file-name order, and you can reorder them here.</p>`}
   </div>`;
+  $("buildTab").innerHTML=`
+  <div class="card build-card">
+    <div class="card-head"><select id="contentsSelect" class="contents-select" onchange="jumpToChapter(this.value)" ${count?"":"disabled"}><option value="">Contents</option>${m.chapters.map((c,i)=>`<option value="ch-${i+1}">${esc(chapterTitle(c))}</option>`).join("")}</select><div class="build-controls"><div class="segmented format-group">${["epub","md","txt","pdf"].map(f=>`<button class="${currentFormat===f?"active":""}" onclick="setFormat('${f}')">${f}</button>`).join("")}</div>${currentFormat==="pdf"?`<select id="templateSelect" class="contents-select template-select" onchange="currentTemplate=this.value;renderBuild()" title="Template">${Object.entries(TEMPLATES).map(([k,t])=>`<option value="${k}" ${k===currentTemplate?"selected":""}>${t.label}</option>`).join("")}</select>`:""}<button class="primary" onclick="exportBuild(currentFormat)">Generate</button></div></div>
+    <div class="build-preview" id="previewBox"></div>
+  </div>`;
+  const box=$("previewBox");
+  if(!count){
+    box.innerHTML='<p class="muted preview-empty">Add chapters to see the preview.</p>';
+  }else{
+    const frame=document.createElement("iframe");
+    frame.title="Preview";
+    frame.srcdoc=buildHtmlPreview(m,previewUrl,currentTemplate);
+    box.appendChild(frame);
+  }
+  fitTab("chaptersTab");fitTab("buildTab");
 }
 async function uploadChapters(input){
   const id=selectedId,files=[...input.files].filter(f=>/\.(md|txt)$/i.test(f.name));
@@ -677,23 +726,13 @@ function removeChapter(i){
     await setChapters(id,list);renderBuild();toast("Chapter removed");
   },true);
 }
-async function previewBook(){
-  const b=selected();if(!b)return;
-  const m=await buildModel(b);
-  if(!m.chapters.length)return showNotice("No chapters","Upload at least one .md or .txt file first.");
-  const coverUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
-  openModal("Preview",`<div class="preview-frame"></div>`);
-  const frame=document.createElement("iframe");
-  frame.className="preview-iframe";
-  frame.srcdoc=buildHtmlPreview(m,coverUrl);
-  $("modalBody").querySelector(".preview-frame").appendChild(frame);
-}
 async function exportBuild(fmt){
   const b=selected();if(!b)return;
   const m=await buildModel(b);
   if(!m.chapters.length)return showNotice("No chapters","Upload at least one .md or .txt file first.");
   if(fmt==="epub")saveBlob(`${fileSafe(b.title)}.epub`,await buildEpub(m));
   else if(fmt==="md")saveBlob(`${fileSafe(b.title)}.md`,new Blob([buildMarkdown(m)],{type:"text/markdown;charset=utf-8"}));
+  else if(fmt==="pdf"){printPdf(m,currentTemplate);return}
   else saveBlob(`${fileSafe(b.title)}.txt`,new Blob([buildTxt(m)],{type:"text/plain;charset=utf-8"}));
   toast(`${fmt.toUpperCase()} generated`);
 }
@@ -766,6 +805,14 @@ async function saveChapterEdit(chapterId){
   closeModal();
   renderBuild();
   toast("Chapter saved");
+}
+
+function setFormat(f){currentFormat=f;renderBuild()}
+function jumpToChapter(anchor){
+  const frame=document.querySelector("#buildTab .build-preview iframe");
+  if(!frame||!anchor)return;
+  const target=frame.contentDocument&&frame.contentDocument.getElementById(anchor);
+  if(target)target.scrollIntoView({block:"start"});
 }
 
 /* ---------- Event wiring ---------- */
