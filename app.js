@@ -292,8 +292,8 @@ function downloadStep(key){const b=selected(),step=STEPS.find(x=>x[0]===key);dow
 
 /* ---------- Export / import ---------- */
 function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nPrice: ${b.price}\nSales URL: ${b.url}\nCreated: ${b.created}\nUpdated: ${b.updated}\n\n=== RESEARCH ===\n${b.research}\n\n=== OUTLINE ===\n${b.outline}\n\n=== EDITORIAL ===\n${b.editorial}\n\n=== METADATA ===\n${b.metadata}\n${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
-function exportBook(){const b=selected();if(!b)return;download(`${fileSafe(b.title)}-book.txt`,bookTxt(b));toast("Book file exported")}
-function exportAll(){books.forEach(b=>download(`${fileSafe(b.title)}-book.txt`,bookTxt(b)));toast("Export started")}
+
+
 function parseBookTxt(text){
   const b=blank(),fields={"ID":"id","Title":"title","Author":"author","Niche":"niche","Type":"type","Target reader":"reader","Status":"status","Price":"price","Sales URL":"url","Created":"created","Updated":"updated"};
   let section=null;
@@ -312,6 +312,102 @@ function parseBookTxt(text){
   for(const s of Object.values(SECTIONS))b[s]=b[s].replace(/\s+$/,"");
   for(const [k] of PUB_FIELDS)b.publishing[k]=b.publishing[k].replace(/\s+$/,"");
   return normalize(b);
+}
+
+
+/* ---------- ZIP (sin dependencias) ---------- */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=CRC_TABLE[(c^d[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function buildZip(entries){
+  const enc=new TextEncoder(),now=new Date();
+  const dosTime=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1);
+  const dosDate=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
+  const parts=[],central=[];let offset=0;
+  for(const {name,data} of entries){
+    const nb=enc.encode(name),crc=crc32(data),size=data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,dosTime,true);lh.setUint16(12,dosDate,true);lh.setUint32(14,crc,true);
+    lh.setUint32(18,size,true);lh.setUint32(22,size,true);lh.setUint16(26,nb.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nb,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,dosTime,true);ch.setUint16(14,dosDate,true);ch.setUint32(16,crc,true);
+    ch.setUint32(20,size,true);ch.setUint32(24,size,true);ch.setUint16(28,nb.length,true);ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer),nb);
+    offset+=30+nb.length+size;
+  }
+  const cdSize=central.reduce((n,p)=>n+p.length,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,entries.length,true);end.setUint16(10,entries.length,true);
+  end.setUint32(12,cdSize,true);end.setUint32(16,offset,true);
+  return new Blob([...parts,...central,new Uint8Array(end.buffer)],{type:"application/zip"});
+}
+async function readZip(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
+  let eocd=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}}
+  if(eocd<0)throw new Error("El archivo no es un ZIP válido.");
+  const count=dv.getUint16(eocd+10,true);let p=dv.getUint32(eocd+16,true);
+  const files=new Map();
+  for(let n=0;n<count;n++){
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nameLen=dv.getUint16(p+28,true),
+          extraLen=dv.getUint16(p+30,true),commentLen=dv.getUint16(p+32,true),local=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nameLen));
+    const start=local+30+dv.getUint16(local+26,true)+dv.getUint16(local+28,true);
+    const raw=u8.subarray(start,start+csize);
+    let data;
+    if(method===0)data=raw;
+    else if(method===8)data=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    else throw new Error("Método de compresión no soportado.");
+    if(!name.endsWith("/"))files.set(name,data);
+    p+=46+nameLen+extraLen+commentLen;
+  }
+  return files;
+}
+const MIME={epub:"application/epub+zip",md:"text/markdown",txt:"text/plain",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif"};
+function mimeOf(name){return MIME[name.split(".").pop().toLowerCase()]||"application/octet-stream"}
+
+/* ---------- Export / import de libros completos (.zip) ---------- */
+async function bookEntries(b,prefix){
+  const out=[{name:prefix+"book.txt",data:new TextEncoder().encode(bookTxt(b))}];
+  for(const kind of ["book","cover"]){
+    const rec=await getFile(`${b.id}:${kind}`);
+    if(rec)out.push({name:`${prefix}files/${kind}/${rec.name}`,data:new Uint8Array(await rec.blob.arrayBuffer())});
+  }
+  return out;
+}
+async function exportBook(){
+  const b=selected();if(!b)return;
+  saveBlob(`${fileSafe(b.title)}-book.zip`,buildZip(await bookEntries(b,"")));
+  toast("Book exported");
+}
+async function exportAll(){
+  if(!books.length)return;
+  const entries=[];
+  for(const [i,b] of books.entries())entries.push(...await bookEntries(b,`${String(i+1).padStart(2,"0")}-${fileSafe(b.title)}/`));
+  saveBlob("kdp-books.zip",buildZip(entries));
+  toast("Export started");
+}
+async function importZip(file){
+  const files=await readZip(await file.arrayBuffer());
+  const roots=[...files.keys()].filter(n=>n==="book.txt"||n.endsWith("/book.txt"));
+  for(const root of roots){
+    const dir=root.slice(0,root.length-"book.txt".length);
+    const b=parseBookTxt(new TextDecoder().decode(files.get(root)));
+    books=books.filter(x=>x.id!==b.id);
+    books.unshift(b);
+    rememberValues(b);
+    for(const kind of ["book","cover"]){
+      const prefix=`${dir}files/${kind}/`;
+      const hit=[...files.keys()].find(n=>n.startsWith(prefix)&&!n.slice(prefix.length).includes("/"));
+      if(hit){
+        const name=hit.split("/").pop(),data=files.get(hit);
+        await putFile(`${b.id}:${kind}`,{name,type:mimeOf(name),size:data.length,blob:new Blob([data],{type:mimeOf(name)})});
+      }
+    }
+  }
+  return roots.length;
 }
 
 /* ---------- Event wiring ---------- */
@@ -336,20 +432,27 @@ $("exportBookBtn").onclick=exportBook;
 $("exportAllBtn").onclick=exportAll;
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
 $("importInput").onchange=async e=>{
-  for(const f of e.target.files){
-    const t=await f.text();
-    if(f.name==="book.txt"||t.startsWith("KDP BOOK MANAGER")){
-      const b=parseBookTxt(t);
-      books=books.filter(x=>x.id!==b.id);
-      books.unshift(b);
-      rememberValues(b);
+  let imported=0;
+  try{
+    for(const f of e.target.files){
+      if(/\.zip$/i.test(f.name)){imported+=await importZip(f);continue}
+      const t=await f.text();
+      if(f.name==="book.txt"||t.startsWith("KDP BOOK MANAGER")){
+        const b=parseBookTxt(t);
+        books=books.filter(x=>x.id!==b.id);
+        books.unshift(b);
+        rememberValues(b);
+        imported++;
+      }
     }
+  }catch(err){
+    showNotice("Import failed",err.message||"The file could not be imported.");
   }
   saveSuggestions();
   e.target.value="";
   persist();
   if(books[0])openBook(books[0].id);
-  toast("Project imported");
+  toast(imported?`Imported ${imported} book${imported===1?"":"s"}`:"Nothing imported");
 };
 
 populate();
