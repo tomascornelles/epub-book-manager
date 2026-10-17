@@ -19,8 +19,8 @@
   --radius:12px;
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
+
+  :root[data-theme="dark"]{
     --accent:#0a84ff;
     --accent-soft:rgba(10,132,255,.22);
     --accent-ink:#64b5ff;
@@ -37,7 +37,7 @@
     --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
     color-scheme:dark;
   }
-}
+
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -255,13 +255,13 @@ button,input,select,textarea{font:inherit;color:inherit}
   --depth:0 1px 0 rgba(255,255,255,.7) inset,0 1px 2px rgba(0,0,0,.08),0 0 0 .5px rgba(0,0,0,.06);
   --depth-raised:0 1px 0 rgba(255,255,255,.75) inset,0 2px 6px rgba(0,0,0,.08),0 10px 28px rgba(0,0,0,.07);
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
+
+  :root[data-theme="dark"]{
     --hi:rgba(255,255,255,.12);
     --depth:0 1px 0 rgba(255,255,255,.12) inset,0 1px 2px rgba(0,0,0,.35),0 0 0 .5px rgba(0,0,0,.4);
     --depth-raised:0 1px 0 rgba(255,255,255,.14) inset,0 2px 8px rgba(0,0,0,.35),0 12px 30px rgba(0,0,0,.3);
   }
-}
+
 
 /* Botones: degradado sutil + brillo superior */
 .primary,.step button.primary-mini{
@@ -327,7 +327,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .price-wrap input{padding-left:22px}
 /* Paso completado: fondo verde muy claro */
 .step.done{background:#f3fbf6}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .step.done{background:rgba(48,209,88,.10)}}
+:root[data-theme="dark"] .step.done{background:rgba(48,209,88,.10)}
 /* Botón "Edit response" en verde */
 .step button.edit-green{background:var(--success);color:#fff;border-color:transparent;box-shadow:0 1px 0 rgba(255,255,255,.35) inset}
 .step button.edit-green:hover{background:var(--success);filter:brightness(1.05)}
@@ -388,9 +388,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* ---------- Cabecera del libro fija arriba ---------- */
 :root{--sel-bg:rgba(120,120,128,.22);--sel-hi:rgba(255,255,255,.75)}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){--sel-bg:rgba(118,118,128,.36);--sel-hi:rgba(255,255,255,.08)}
-}
+
+  :root[data-theme="dark"]{--sel-bg:rgba(118,118,128,.36);--sel-hi:rgba(255,255,255,.08)}
+
 .book-header{
   position:sticky;top:0;z-index:4;
   padding:16px;
@@ -452,3 +452,56 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* ---------- Motivo de archivo (ocupa las 3 columnas) ---------- */
 .archive-field{grid-column:1 / -1}
+
+/* ---------- Barras de desplazamiento con el estilo de la app ---------- */
+:root{--scroll:rgba(120,120,128,.4)}
+:root[data-theme="dark"]{--scroll:rgba(235,235,245,.35)}
+*{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:10px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--text-3);border:3px solid transparent;background-clip:padding-box}
+
+/* ---------- Cabecera y pestañas fijas, a todo el ancho ---------- */
+.main{--pad-x:40px}
+.sticky-top{
+  position:sticky;top:0;z-index:4;
+  background:var(--bg);
+  margin:0 calc(var(--pad-x) * -1);
+  padding:0 var(--pad-x) 12px;
+  box-shadow:0 1px 0 var(--line);
+}
+.sticky-top .book-header{position:static;background:none;padding:16px;margin:0}
+.sticky-top .tabs{margin:0}
+@media (max-width:650px){.main{--pad-x:16px}}
+
+/* ---------- Capítulos arrastrables ---------- */
+.chapter-item .grip{cursor:grab;color:var(--text-3);font-size:12px;letter-spacing:-2px;user-select:none;flex-shrink:0}
+.chapter-item:active{cursor:grabbing}
+.chapter-item.dragging{opacity:.45}
+.chapter-item.drop-target{box-shadow:inset 0 2px 0 var(--accent),var(--depth)}
+
+/* ---------- Fondo de la zona principal ---------- */
+:root{--main-bg:#fbfbfd}
+:root[data-theme="dark"]{--main-bg:#252528}
+.main{background:var(--main-bg)}
+.sticky-top{background:var(--main-bg)}
+
+/* ---------- Ajustes de cabecera y formulario ---------- */
+.sticky-top .book-header{align-items:center}
+.sticky-top + .meta-grid{margin-top:16px}
+
+/* ---------- Menú de la barra lateral ---------- */
+.menu-wrap{position:relative}
+.app-menu{
+  position:absolute;left:0;right:0;bottom:calc(100% + 8px);z-index:20;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.2);padding:6px;
+}
+.menu-item{display:block;width:100%;text-align:left;padding:7px 10px;border:0;background:transparent;border-radius:7px;cursor:pointer;color:var(--text);font-size:13px}
+.menu-item:hover{background:var(--accent);color:#fff}
+.menu-sep{height:1px;background:var(--line);margin:6px 4px}
+.menu-caption{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);padding:4px 10px 6px}
+.segmented{display:flex;gap:2px;padding:2px;margin:0 4px 4px;background:rgba(120,120,128,.14);border-radius:8px}
+.segmented button{flex:1;border:0;background:transparent;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;color:var(--text-2);cursor:pointer}
+.segmented button.active{background:var(--surface);color:var(--text);box-shadow:var(--depth)}

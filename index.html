@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>(function(){var p=localStorage.getItem("kdp-theme")||"system";var d=p==="system"?matchMedia("(prefers-color-scheme: dark)").matches:p==="dark";document.documentElement.dataset.theme=d?"dark":"light"})();</script>
 <title>KDP Book Manager</title><link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
 </head>
@@ -13,9 +14,22 @@
   <div class="side-section"><label>Status</label><select id="statusFilter"></select></div>
   <div id="bookList" class="book-list"></div>
   <div class="sidebar-bottom">
-    <button id="exportBookBtn" class="secondary full">Export current book</button>
-    <button id="exportAllBtn" class="secondary full">Export all books</button>
-    <label class="import-label full">Import project files<input id="importInput" type="file" accept=".txt,.md,.zip" multiple hidden></label>
+    <div class="menu-wrap">
+      <button id="menuBtn" class="secondary full">☰ Menu</button>
+      <div id="appMenu" class="app-menu hidden">
+        <button class="menu-item" id="exportBookBtn">Export current book</button>
+        <button class="menu-item" id="exportAllBtn">Export all books</button>
+        <button class="menu-item" id="importBtn">Import project files</button>
+        <div class="menu-sep"></div>
+        <div class="menu-caption">Appearance</div>
+        <div class="segmented">
+          <button data-theme-choice="light">Day</button>
+          <button data-theme-choice="dark">Night</button>
+          <button data-theme-choice="system">System</button>
+        </div>
+      </div>
+      <input id="importInput" type="file" accept=".txt,.md,.zip" multiple hidden>
+    </div>
     <div id="storageNote" class="muted">Browser storage active.</div>
   </div>
 </aside>
@@ -24,12 +38,19 @@
 <section id="emptyState" class="empty hidden"><h2>No book selected</h2><p>Create a book to start the workflow.</p><button id="emptyNewBtn" class="primary">Create first book</button></section>
 
 <section id="editor" class="hidden">
+  <div class="sticky-top">
   <div class="book-header">
-    <div class="title-wrap"><input id="titleInput" class="title-input" placeholder="Book title"><span id="authorName" class="subtitle-input"></span></div>
+    <div class="title-wrap"><input id="titleInput" class="title-input" placeholder="Book title"></div>
     <div class="status-actions">
       <select id="statusInput"></select>
       <div class="top-actions"><button id="saveBtn" class="primary">Save</button><button id="deleteBtn" class="danger">Delete</button></div>
     </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="workflow">Workflow</button>
+    <button class="tab" data-tab="publishing">Publishing</button>
+    <button class="tab" data-tab="build">Build</button>
+  </nav>
   </div>
   <div class="meta-grid">
     <div class="field">
@@ -53,11 +74,6 @@
     <label id="archiveField" class="archive-field hidden">Archive reason<input id="archiveReasonInput" placeholder="Why is this book archived?"></label>
   </div>
 
-  <nav class="tabs">
-    <button class="tab active" data-tab="workflow">Workflow</button>
-    <button class="tab" data-tab="publishing">Publishing</button>
-    <button class="tab" data-tab="build">Build</button>
-  </nav>
   <section id="workflowTab"></section>
   <section id="publishingTab" class="hidden"></section>
   <section id="buildTab" class="hidden"></section>

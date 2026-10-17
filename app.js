@@ -239,7 +239,6 @@ function openBook(id){
   $("emptyState").classList.add("hidden");
   $("editor").classList.remove("hidden");
   $("titleInput").value=b.title;
-  $("authorName").textContent=b.author;
   $("authorInput").value=b.author;
   $("nicheInput").value=b.niche;
   $("typeInput").value=b.type;
@@ -388,6 +387,8 @@ async function bookEntries(b,prefix){
     const rec=await getFile(`${b.id}:${kind}`);
     if(rec)out.push({name:`${prefix}files/${kind}/${rec.name}`,data:new Uint8Array(await rec.blob.arrayBuffer())});
   }
+  const chapters=await getChapters(b.id);
+  chapters.forEach((c,i)=>out.push({name:`${prefix}chapters/${pad(i+1)}-${c.name}`,data:new TextEncoder().encode(c.md)}));
   return out;
 }
 async function exportBook(){
@@ -419,6 +420,11 @@ async function importZip(file){
         await putFile(`${b.id}:${kind}`,{name,type:mimeOf(name),size:data.length,blob:new Blob([data],{type:mimeOf(name)})});
       }
     }
+    const chPrefix=`${dir}chapters/`;
+    const chNames=[...files.keys()]
+      .filter(n=>n.startsWith(chPrefix)&&!n.slice(chPrefix.length).includes("/"))
+      .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    await setChapters(b.id,chNames.map(n=>({id:uid(),name:n.slice(chPrefix.length).replace(/^\d+-/,""),md:new TextDecoder().decode(files.get(n))})));
   }
   return roots.length;
 }
@@ -631,7 +637,7 @@ async function renderBuild(){
       <button class="secondary" onclick="sortChapters()" ${list.length<2?"disabled":""}>Sort by name</button>
     </div></div>
     <input type="file" id="chaptersInput" accept=".md,.txt" multiple hidden onchange="uploadChapters(this)">
-    ${list.length?`<ol class="chapter-list">${list.map((c,i)=>`<li class="chapter-item"><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===list.length-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files. They're added in file-name order, and you can reorder them here.</p>`}
+    ${list.length?`<ol class="chapter-list">${list.map((c,i)=>`<li class="chapter-item" draggable="true" ondragstart="chapterDragStart(event,${i})" ondragover="chapterDragOver(event)" ondrop="chapterDrop(event,${i})" ondragend="chapterDragEnd()"><span class="grip" title="Arrastra para reordenar">⋮⋮</span><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===list.length-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files. They're added in file-name order, and you can reorder them here.</p>`}
   </div>
   <div class="card">
     <div class="card-head"><h3>Build</h3></div>
@@ -693,6 +699,35 @@ async function exportBuild(fmt){
 
 function syncArchiveField(){$("archiveField").classList.toggle("hidden",$("statusInput").value!==ARCHIVED)}
 
+/* ---------- Ordenar capítulos por arrastre ---------- */
+let dragFrom=null;
+function chapterDragStart(e,i){
+  dragFrom=i;
+  e.dataTransfer.effectAllowed="move";
+  e.dataTransfer.setData("text/plain",String(i));
+  e.currentTarget.classList.add("dragging");
+}
+function chapterDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  document.querySelectorAll(".chapter-item.drop-target").forEach(el=>el.classList.remove("drop-target"));
+  e.currentTarget.classList.add("drop-target");
+}
+function chapterDragEnd(){
+  document.querySelectorAll(".chapter-item").forEach(el=>el.classList.remove("dragging","drop-target"));
+  dragFrom=null;
+}
+async function chapterDrop(e,i){
+  e.preventDefault();
+  const from=dragFrom;dragFrom=null;
+  if(from===null||from===i)return chapterDragEnd();
+  const id=selectedId,list=await getChapters(id);
+  const [moved]=list.splice(from,1);
+  list.splice(i,0,moved);
+  await setChapters(id,list);
+  renderBuild();
+}
+
 /* ---------- Event wiring ---------- */
 $("newBookBtn").onclick=newBook;
 $("emptyNewBtn").onclick=newBook;
@@ -740,6 +775,34 @@ $("importInput").onchange=async e=>{
   toast(imported?`Imported ${imported} book${imported===1?"":"s"}`:"Nothing imported");
 };
 
+/* ---------- Tema (día / noche / sistema) ---------- */
+const THEME_KEY="kdp-theme";
+const systemDark=window.matchMedia("(prefers-color-scheme: dark)");
+function applyTheme(){
+  const pref=localStorage.getItem(THEME_KEY)||"system";
+  const resolved=pref==="system"?(systemDark.matches?"dark":"light"):pref;
+  document.documentElement.dataset.theme=resolved;
+  document.querySelectorAll("[data-theme-choice]").forEach(b=>b.classList.toggle("active",b.dataset.themeChoice===pref));
+}
+function setTheme(pref){localStorage.setItem(THEME_KEY,pref);applyTheme()}
+systemDark.addEventListener("change",applyTheme);
+
+/* ---------- Menú de la barra lateral ---------- */
+$("menuBtn").onclick=e=>{e.stopPropagation();$("appMenu").classList.toggle("hidden")};
+document.addEventListener("click",e=>{if(!e.target.closest(".menu-wrap"))$("appMenu").classList.add("hidden")});
+$("appMenu").addEventListener("click",e=>{
+  const choice=e.target.closest("[data-theme-choice]");
+  if(choice){setTheme(choice.dataset.themeChoice);return}
+  if(e.target.closest(".menu-item"))$("appMenu").classList.add("hidden");
+});
+$("importBtn").onclick=()=>$("importInput").click();
+
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if(!$("modal").classList.contains("hidden"))closeModal();
+  $("appMenu").classList.add("hidden");
+});
+applyTheme();
 populate();
 setupCombos();
 renderList();
