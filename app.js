@@ -634,10 +634,11 @@ async function renderBuild(){
   <div class="card">
     <div class="card-head"><h3>Chapters</h3><div class="card-actions">
       <button class="secondary" onclick="$('chaptersInput').click()">Upload .md / .txt</button>
+      <button class="secondary" onclick="openChapterEditor()">New chapter</button>
       <button class="secondary" onclick="sortChapters()" ${list.length<2?"disabled":""}>Sort by name</button>
     </div></div>
     <input type="file" id="chaptersInput" accept=".md,.txt" multiple hidden onchange="uploadChapters(this)">
-    ${list.length?`<ol class="chapter-list">${list.map((c,i)=>`<li class="chapter-item" draggable="true" ondragstart="chapterDragStart(event,${i})" ondragover="chapterDragOver(event)" ondrop="chapterDrop(event,${i})" ondragend="chapterDragEnd()"><span class="grip" title="Arrastra para reordenar">⋮⋮</span><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===list.length-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files. They're added in file-name order, and you can reorder them here.</p>`}
+    ${list.length?`<ol class="chapter-list">${list.map((c,i)=>`<li class="chapter-item" draggable="true" ondragstart="chapterDragStart(event,${i})" ondragover="chapterDragOver(event)" ondrop="chapterDrop(event,${i})" ondragend="chapterDragEnd()"><span class="grip" title="Arrastra para reordenar">⋮⋮</span><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="openChapterEditor('${c.id}')" title="Edit">✎</button><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===list.length-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files. They're added in file-name order, and you can reorder them here.</p>`}
   </div>
   <div class="card">
     <div class="card-head"><h3>Build</h3></div>
@@ -726,6 +727,45 @@ async function chapterDrop(e,i){
   list.splice(i,0,moved);
   await setChapters(id,list);
   renderBuild();
+}
+
+/* ---------- Crear y editar capítulos ---------- */
+async function openChapterEditor(chapterId){
+  const id=selectedId;if(!id)return;
+  const list=await getChapters(id);
+  const c=chapterId?list.find(x=>x.id===chapterId):{md:`# Chapter ${list.length+1}\n\n`};
+  if(!c)return;
+  openModal(chapterId?"Edit chapter":"New chapter",`<div class="chapter-editor">
+    <div class="editor-bar"><div class="segmented"><button data-view="code" class="active">Code</button><button data-view="preview">Preview</button></div></div>
+    <textarea id="chapterMd" class="md-code" spellcheck="false"></textarea>
+    <div id="chapterPreview" class="md-preview hidden"></div>
+    <div class="confirm-actions"><button class="secondary" id="cancelChapter">Cancel</button><button class="primary" id="saveChapter">Save chapter</button></div>
+  </div>`);
+  $("chapterMd").value=c.md;
+  document.querySelectorAll("[data-view]").forEach(btn=>btn.onclick=()=>setChapterView(btn.dataset.view));
+  $("cancelChapter").onclick=closeModal;
+  $("saveChapter").onclick=()=>saveChapterEdit(chapterId||null);
+}
+function setChapterView(view){
+  document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+  $("chapterMd").classList.toggle("hidden",view!=="code");
+  $("chapterPreview").classList.toggle("hidden",view!=="preview");
+  if(view==="preview")$("chapterPreview").innerHTML=mdToHtml($("chapterMd").value);
+}
+async function saveChapterEdit(chapterId){
+  const id=selectedId,md=$("chapterMd").value;
+  const list=await getChapters(id);
+  if(chapterId){
+    const c=list.find(x=>x.id===chapterId);
+    if(c)c.md=md;
+  }else{
+    const title=(md.match(/^#\s+(.+)$/m)||[])[1]||`chapter ${list.length+1}`;
+    list.push({id:uid(),name:`${anchorOf(title)||"chapter"}.md`,md});
+  }
+  await setChapters(id,list);
+  closeModal();
+  renderBuild();
+  toast("Chapter saved");
 }
 
 /* ---------- Event wiring ---------- */

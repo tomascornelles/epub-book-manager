@@ -505,3 +505,16 @@ button,input,select,textarea{font:inherit;color:inherit}
 .segmented{display:flex;gap:2px;padding:2px;margin:0 4px 4px;background:rgba(120,120,128,.14);border-radius:8px}
 .segmented button{flex:1;border:0;background:transparent;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;color:var(--text-2);cursor:pointer}
 .segmented button.active{background:var(--surface);color:var(--text);box-shadow:var(--depth)}
+
+/* ---------- Editor de capítulos ---------- */
+.chapter-editor{padding:18px;display:grid;gap:12px}
+.editor-bar{display:flex;justify-content:flex-start}
+.editor-bar .segmented{margin:0;width:200px}
+.md-code,.md-preview{width:100%;min-height:52vh;border-radius:10px;border:1px solid var(--field-line);background:var(--field);color:var(--text);padding:14px}
+.md-code{font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;outline:none}
+.md-code:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.md-preview{overflow:auto;line-height:1.6;font-family:Georgia,serif}
+.md-preview h1,.md-preview h2,.md-preview h3{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+.md-preview pre{background:var(--surface-2);padding:10px;border-radius:8px;overflow:auto;white-space:pre-wrap}
+.md-preview code{font-family:ui-monospace,monospace;font-size:.9em}
+.md-preview blockquote{margin:0 0 .8em;padding-left:12px;border-left:3px solid var(--line);color:var(--text-2)}
