@@ -12,7 +12,7 @@ ePub Book Manager runs entirely in the browser. There is no server, no account a
 ## Features
 
 - **Book library** with search, a status filter, and archived books collapsed at the bottom of the list (they are still included in exports).
-- **Status tracking:** `✏️ WIP`, `📗 Ready for ePub`, `⏳ Waiting ePub`, `🚀 Published`, `📁 Archived`. Archiving asks for a reason.
+- **Status tracking:** `✏️ WIP`, `📗 Ready`, `⏳ Waiting`, `🚀 Published`, `📁 Archived`. Archiving asks for a reason.
 - **AI-assisted workflow:** configurable prompt steps. View a prompt, paste the response, and keep it with the book. Steps appear or hide depending on the book's type, niche, status, language or author.
 - **Prompt placeholders** such as `{{title}}`, `{{author}}`, `{{description}}`, `{{frontMatter}}` and `{{step.ID}}` to reuse earlier answers.
 - **Publishing metadata:** Amazon description, back cover text, tags, categories, front matter and back matter.
@@ -98,14 +98,14 @@ All data stays in the browser that runs the app.
 
 | Storage | Keys | Contents |
 | --- | --- | --- |
-| `localStorage` | `kdp-book-manager-v2` | Books and their metadata |
-| `localStorage` | `kdp-book-manager-suggestions` | Autocomplete suggestions |
-| `localStorage` | `kdp-prompt-steps-v1` | Prompt step configuration |
-| `localStorage` | `kdp-templates-v1` | Build templates |
-| `localStorage` | `kdp-theme`, `kdp-archived-open` | Interface preferences |
-| IndexedDB `kdp-book-manager-files` (store `files`) | `${bookId}:book`, `${bookId}:cover`, `${bookId}:chapters` | Attachments and chapters |
+| `localStorage` | `epub-book-manager-v2` | Books and their metadata |
+| `localStorage` | `epub-book-manager-suggestions` | Autocomplete suggestions |
+| `localStorage` | `epub-prompt-steps-v1` | Prompt step configuration |
+| `localStorage` | `epub-templates-v1` | Build templates |
+| `localStorage` | `epub-theme`, `epub-archived-open` | Interface preferences |
+| IndexedDB `epub-book-manager-files` (store `files`) | `${bookId}:book`, `${bookId}:cover`, `${bookId}:chapters` | Attachments and chapters |
 
-These keys keep the names they had before the rename, so existing data is preserved.
+Versions before the rename used `kdp-*` names. On first load the app copies that data to the new keys and database automatically, then removes the old copies.
 
 Browsers keep storage separately for each origin. Data created at `file://…/index.html`, `localhost:8080` and `epub-book-manager.netlify.app` **are three different sets of data**. To move your work between them, use *☰ Menu → Backup* in the old location and restore it in the new one.
 

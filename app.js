@@ -1,10 +1,10 @@
-const KEY="kdp-book-manager-v2";
-const SUGGEST_KEY="kdp-book-manager-suggestions";
-const DB_NAME="kdp-book-manager-files";
-const ARCHIVED_OPEN_KEY="kdp-archived-open";
+const KEY="epub-book-manager-v2";
+const SUGGEST_KEY="epub-book-manager-suggestions";
+const DB_NAME="epub-book-manager-files";
+const ARCHIVED_OPEN_KEY="epub-archived-open";
 const WIP="✏️ WIP",ARCHIVED="📁 Archived";
-const STATUSES=[WIP,"📗 Ready for ePub","⏳ Waiting ePub","🚀 Published",ARCHIVED];
-const LEGACY_STATUS={"Ready for KDP":"📗 Ready for ePub","Waiting KDP":"⏳ Waiting ePub","Idea":WIP,"Research":WIP,"Outline":WIP,"Writing":WIP,"Editing":WIP,"Formatting":WIP,"Paused":ARCHIVED,"Blocked":ARCHIVED};
+const STATUSES=[WIP,"📗 Ready","⏳ Waiting","🚀 Published",ARCHIVED];
+const LEGACY_STATUS={"Ready for KDP":"📗 Ready","Waiting KDP":"⏳ Waiting","Ready for ePub":"📗 Ready","Waiting ePub":"⏳ Waiting","Idea":WIP,"Research":WIP,"Outline":WIP,"Writing":WIP,"Editing":WIP,"Formatting":WIP,"Paused":ARCHIVED,"Blocked":ARCHIVED};
 function normalizeStatus(s){
   if(STATUSES.includes(s))return s;
   const str=String(s||""),label=str.includes(" ")?str.slice(str.indexOf(" ")+1):str;
@@ -30,7 +30,7 @@ challenge:`You are a professional nonfiction book editor.\n\nTITLE:\n{{title}}\n
 novel:`You are a professional fiction book editor.\n\nTITLE:\n{{title}}\n\nTARGET READER:\n{{reader}}\nBOOK TYPE:\n{{type}}\nNICHE:\n{{niche}}\n\nCreate a detailed outline with a logical progression. For every chapter create the PROMPT "You are an experienced American fiction workbook author.\n\nBOOK:\n{{title}}\nTARGET READER:\n{{reader}}\nBOOK TYPE:\n{{type}}\nCHAPTER:\n{{chapter}}\nCHAPTER PLOT:\n[CHAPTER PLOT]\n\nWrite one complete chapter in natural American English between 10-20 pages. Use Markdown headings, long paragraphs, descriptive scenes and be consistent with the data. Do not mention AI.\n\nUse this Markdown structure:\n# Chapter [NUMBER] — [TITLE]\n\n[CONTENT]\n\nReturn only the finished Markdown chapter." ready to paste. Avoid repetition and filler. Make every chapter materially useful. Write in natural American English.`
 };
 
-const PROMPT_KEY="kdp-prompt-steps-v1";
+const PROMPT_KEY="epub-prompt-steps-v1";
 const FIELDS=[["type","Type"],["niche","Niche"],["status","Status"],["language","Language"],["author","Author"]];
 const OPS=["is","is not","contains"];
 const WILDCARDS=["title","author","reader","niche","type","language","status","price","archive-reason","description","backText","tags","categories","frontMatter","backMatter","chapter","purpose"];
@@ -84,7 +84,37 @@ function openDb(){
     r.onupgradeneeded=()=>r.result.createObjectStore("files");
     r.onsuccess=()=>res(r.result);
     r.onerror=()=>rej(r.error);
-  }));
+  }).then(migrateOldDb));
+}
+/* Migra adjuntos y capítulos de la base antigua (kdp-book-manager-files). Idempotente. */
+const OLD_DB_NAME="kdp-book-manager-files";
+const IDB_MIGRATED_KEY="epub-migrated-idb";
+function idbRequest(req){return new Promise((res,rej)=>{req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error)})}
+function idbAllEntries(db){
+  return new Promise((res,rej)=>{
+    const out=[],c=db.transaction("files","readonly").objectStore("files").openCursor();
+    c.onsuccess=()=>{const cur=c.result;if(cur){out.push([cur.key,cur.value]);cur.continue()}else res(out)};
+    c.onerror=()=>rej(c.error);
+  });
+}
+async function migrateOldDb(db){
+  if(localStorage.getItem(IDB_MIGRATED_KEY))return db;
+  try{
+    const old=await idbRequest(indexedDB.open(OLD_DB_NAME));
+    if(old.objectStoreNames.contains("files")){
+      const entries=await idbAllEntries(old);
+      const have=new Set(await idbRequest(db.transaction("files","readonly").objectStore("files").getAllKeys()));
+      await new Promise((res,rej)=>{
+        const t=db.transaction("files","readwrite"),st=t.objectStore("files");
+        for(const [k,v] of entries)if(!have.has(k))st.put(v,k);
+        t.oncomplete=()=>res();t.onerror=()=>rej(t.error);
+      });
+    }
+    old.close();
+    await new Promise(res=>{const r=indexedDB.deleteDatabase(OLD_DB_NAME);r.onsuccess=r.onerror=r.onblocked=()=>res()});
+    localStorage.setItem(IDB_MIGRATED_KEY,"1");
+  }catch(e){console.error("Attachment migration failed; will retry on next load:",e)}
+  return db;
 }
 function fileOp(mode,fn){
   return openDb().then(d=>new Promise((res,rej)=>{
@@ -982,7 +1012,7 @@ async function refreshCovers(){
 /* ---------- Build tab: chapters, preview and generation ---------- */
 const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}`;
 const BASE_CSS=`body{margin:0;color:#222;background:#fdfdfb;line-height:1.6}img{max-width:100%}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}blockquote{margin:1em 2em;font-style:italic;color:#444}section{padding-top:20px;margin-top:28px;border-top:1px solid #e5e5e0}.title-page{text-align:center;padding:40px 0;border:0;margin:0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}@media screen{body{max-width:680px;margin:0 auto;padding:24px}}@media print{body{background:#fff}section{border:0;margin:0;padding-top:0}.title-page{break-after:page;padding:30% 0 0}section.chapter{break-before:page}}`;
-const TEMPLATES_KEY="kdp-templates-v1";
+const TEMPLATES_KEY="epub-templates-v1";
 const DEFAULT_TEMPLATES=[
   {id:"classic",label:"Classic",size:"A5",margin:"18mm 16mm",css:`body{font-family:Georgia,"Times New Roman",serif}h1,h2,h3{font-family:Georgia,serif;text-align:center}`},
   {id:"modern",label:"Modern",size:"A4",margin:"20mm 18mm",css:`body{font-family:Helvetica,Arial,sans-serif}h1{color:#3b67f2;border-bottom:3px solid #3b67f2;padding-bottom:.2em}h2,h3{color:#222}.author{color:#3b67f2;font-style:normal}`},
@@ -1387,7 +1417,7 @@ $("exportAllBtn").onclick=openExportPicker;
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
 
 /* ---------- Theme (day / night / system) ---------- */
-const THEME_KEY="kdp-theme";
+const THEME_KEY="epub-theme";
 const systemDark=window.matchMedia("(prefers-color-scheme: dark)");
 function applyTheme(){
   const pref=localStorage.getItem(THEME_KEY)||"system";
@@ -1414,7 +1444,7 @@ $("backupBtn").onclick=openBackup;
 /* ---------- Install app (PWA) ---------- */
 let deferredInstall=null;
 const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("installBtn").classList.remove("hidden")});
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e});
 window.addEventListener("appinstalled",()=>{deferredInstall=null;$("installBtn").classList.add("hidden");toast("App installed")});
 async function installApp(){
   if(isStandalone())return showNotice("Already installed","ePub Book Manager is already running as an app.");
@@ -1429,6 +1459,7 @@ async function installApp(){
   showNotice("Install app","Use the install icon in the address bar, or the browser menu, and choose \"Install ePub Book Manager\".");
 }
 $("installBtn").onclick=installApp;
+if(isStandalone())$("installBtn").classList.add("hidden");
 
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;

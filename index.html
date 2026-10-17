@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<script>(function(){var p=localStorage.getItem("kdp-theme")||"system";var d=p==="system"?matchMedia("(prefers-color-scheme: dark)").matches:p==="dark";document.documentElement.dataset.theme=d?"dark":"light"})();</script>
+<script>(function(){var M={"kdp-book-manager-v2":"epub-book-manager-v2","kdp-book-manager-suggestions":"epub-book-manager-suggestions","kdp-prompt-steps-v1":"epub-prompt-steps-v1","kdp-templates-v1":"epub-templates-v1","kdp-theme":"epub-theme","kdp-archived-open":"epub-archived-open"};try{for(var o in M){var v=localStorage.getItem(o);if(v!==null){if(localStorage.getItem(M[o])===null)localStorage.setItem(M[o],v);localStorage.removeItem(o)}}}catch(e){}var p=localStorage.getItem("epub-theme")||"system";var d=p==="system"?matchMedia("(prefers-color-scheme: dark)").matches:p==="dark";document.documentElement.dataset.theme=d?"dark":"light"})();</script>
 <meta name="description" content="Local-first manager for ePub books with an AI-assisted workflow. Installable and works offline.">
 <meta name="theme-color" content="#0a84ff">
 <meta name="mobile-web-app-capable" content="yes">
@@ -31,7 +31,7 @@
         <button class="menu-item" id="templatesBtn">Configure templates</button>
         <button class="menu-item" id="backupBtn">Backup</button>
         <div class="menu-sep"></div>
-        <button class="menu-item hidden" id="installBtn">Install app</button>
+        <button class="menu-item" id="installBtn">Install app</button>
         <div class="menu-sep"></div>
         <div class="menu-caption">Appearance</div>
         <div class="segmented">
