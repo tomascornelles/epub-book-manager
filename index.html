@@ -45,16 +45,21 @@
       <div class="combo"><input id="typeInput" autocomplete="off" placeholder="Escribe o elige un tipo"><div id="typeSuggest" class="suggest hidden"></div></div>
     </div>
     <label>Price<div class="price-wrap"><span>$</span><input id="priceInput" type="number" step="0.01" min="0" placeholder="0.00"></div></label>
-    <label>Sales URL<input id="urlInput" type="url" placeholder="https://…"></label>
+    <div class="field">
+      <label for="languageInput">Language</label>
+      <div class="combo"><input id="languageInput" autocomplete="off" placeholder="en-US"><div id="languageSuggest" class="suggest hidden"></div></div>
+    </div>
     <label>Target reader<input id="readerInput"></label>
   </div>
 
   <nav class="tabs">
     <button class="tab active" data-tab="workflow">Workflow</button>
     <button class="tab" data-tab="publishing">Publishing</button>
+    <button class="tab" data-tab="build">Build</button>
   </nav>
   <section id="workflowTab"></section>
   <section id="publishingTab" class="hidden"></section>
+  <section id="buildTab" class="hidden"></section>
 </section>
 </main>
 </div>

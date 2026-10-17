@@ -4,6 +4,7 @@ const DB_NAME="kdp-book-manager-files";
 const STATUSES=["💡 Idea","🔍 Research","📝 Outline","✏️ Writing","📑 Editing","📗 Ready for KDP","⏳ Waiting KDP","🚀 Published","📁 Paused","🚫 Blocked"];
 const HIDDEN_STATUSES=["🚀 Published","📁 Paused","🚫 Blocked"];
 const TYPES=["30-Day Challenge","Practical Guide","Novel"];
+const LANGUAGES=["en-US","es-ES"];
 const AUTHORS=["Tomas Cornelles","Thomas A. Carter","Theodore A. Collins","Trevor A. Clark","Tyler A. Cooper","Timothy A. Campbell","Theresa A. Carter","Taylor A. Collins","Tiffany A. Clark","Tessa A. Cooper","Tabitha A. Campbell"];
 const NICHES=[["productivity","Productivity & Time Management"],["personal-finance","Personal Finance & Money Management"],["self-improvement","Self-Improvement & Personal Development"],["health-and-wellness","Health & Wellness"],["fitness","Fitness & Exercise"],["mindfulness","Mindfulness & Stress Management"],["relationships","Relationships & Communication"],["parenting","Parenting & Family"],["career-and-business","Career & Business"],["hobbies-and-lifestyle","Hobbies & Lifestyle"],["scify","Scify"],["historical-fiction","Historical Fiction"]];
 const PUB_FIELDS=[["description","Amazon description",9],["backText","Back cover text",6],["tags","Tags",4],["categories","Categories",4],["frontMatter","Front matter",8],["backMatter","Back matter",8]];
@@ -24,7 +25,7 @@ novel:`You are a professional fiction book editor.\n\nTITLE:\n{{title}}\n\nTARGE
 };
 
 const SECTIONS={"RESEARCH":"research","OUTLINE":"outline","EDITORIAL":"editorial","METADATA":"metadata"};
-const COMBOS={author:{input:"authorInput",list:"authors"},niche:{input:"nicheInput",list:"niches"},type:{input:"typeInput",list:"types"}};
+const COMBOS={author:{input:"authorInput",list:"authors"},niche:{input:"nicheInput",list:"niches"},type:{input:"typeInput",list:"types"},language:{input:"languageInput",list:"languages"}};
 
 let books=load(), selectedId=null, activeIndex=-1, dbPromise=null;
 let suggestions=loadSuggestions();
@@ -79,6 +80,7 @@ async function attachFile(kind,input){
   if(kind==="cover"&&!f.type.startsWith("image/"))return showNotice("Unsupported file","The cover must be an image file.");
   await putFile(`${id}:${kind}`,{name:f.name,type:f.type,size:f.size,blob:f});
   await renderAttachments();
+  await refreshCovers();
   toast("File attached");
 }
 async function downloadAttachment(kind){
@@ -89,6 +91,7 @@ function removeAttachment(kind){
   askConfirm("Remove file","Remove this attachment from the book?","Remove",async()=>{
     await delFile(`${selectedId}:${kind}`);
     await renderAttachments();
+    await refreshCovers();
     toast("Attachment removed");
   },true);
 }
@@ -116,18 +119,19 @@ function normalize(b){
   const n=NICHES.find(([slug])=>slug===b.niche);
   if(n)b.niche=n[1];
   b.publishing={...blankPublishing(),...(b.publishing||{})};
+  b.language=b.language||"en-US";
   return b;
 }
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]").map(normalize)}catch{return[]}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(books));renderList()}
 function blankPublishing(){return Object.fromEntries(PUB_FIELDS.map(([k])=>[k,""]))}
-function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",url:"",status:STATUSES[0],created:now,updated:now,research:"",outline:"",editorial:"",metadata:"",publishing:blankPublishing()}}
+function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",language:"en-US",status:STATUSES[0],created:now,updated:now,research:"",outline:"",editorial:"",metadata:"",publishing:blankPublishing()}}
 function selected(){return books.find(b=>b.id===selectedId)}
 
 /* ---------- Autocomplete suggestions ---------- */
-function defaultSuggestions(){return{authors:[...AUTHORS],niches:NICHES.map(([,label])=>label),types:[...TYPES]}}
+function defaultSuggestions(){return{authors:[...AUTHORS],niches:NICHES.map(([,label])=>label),types:[...TYPES],languages:[...LANGUAGES]}}
 function loadSuggestions(){
-  try{const s=JSON.parse(localStorage.getItem(SUGGEST_KEY)||"null");if(s)return s}catch{}
+  try{const s=JSON.parse(localStorage.getItem(SUGGEST_KEY)||"null");if(s){s.languages=s.languages||[...LANGUAGES];return s}}catch{}
   const s=defaultSuggestions();
   for(const b of books)rememberValues(b,s);
   return s;
@@ -137,7 +141,7 @@ function addTo(list,value){
   const v=(value||"").trim();
   if(v&&!list.some(x=>x.toLowerCase()===v.toLowerCase()))list.push(v);
 }
-function rememberValues(b,s=suggestions){addTo(s.authors,b.author);addTo(s.niches,b.niche);addTo(s.types,b.type)}
+function rememberValues(b,s=suggestions){addTo(s.authors,b.author);addTo(s.niches,b.niche);addTo(s.types,b.type);addTo(s.languages,b.language)}
 function removeSuggestion(name,value){
   const list=suggestions[COMBOS[name].list];
   const i=list.indexOf(value);
@@ -196,7 +200,7 @@ function saveCurrent(silent=false){
   b.niche=$("nicheInput").value.trim();
   b.type=$("typeInput").value.trim();
   b.price=$("priceInput").value;
-  b.url=$("urlInput").value;
+  b.language=$("languageInput").value.trim()||"en-US";
   b.reader=$("readerInput").value;
   b.status=$("statusInput").value;
   b.publishing={};
@@ -217,7 +221,7 @@ function renderList(){
     .filter(b=>!f||b.status===f)
     .sort((a,b)=>STATUSES.indexOf(a.status)-STATUSES.indexOf(b.status)||(b.updated||"").localeCompare(a.updated||""));
   $("exportAllBtn").textContent=`Export all ${books.length} book${books.length===1?"":"s"}`;
-  $("bookList").innerHTML=vs.map(b=>`<div class="book-item ${b.id===selectedId?"selected":""}" onclick="openBook('${b.id}')"><div class="book-item-title">${esc(b.status.split(" ")[0])} ${esc(b.title)}</div><div class="book-item-meta">${esc(b.author)}</div></div>`).join("");
+  $("bookList").innerHTML=vs.map(b=>{const cover=coverUrls.get(b.id);return `<div class="book-item ${b.id===selectedId?"selected":""}" onclick="openBook('${b.id}')"><div class="book-item-row"><div class="book-item-text"><div class="book-item-title">${esc(b.status.split(" ")[0])} ${esc(b.title)}</div><div class="book-item-meta">${esc(b.author)}</div></div>${cover?`<img class="book-thumb" src="${cover}" alt="">`:""}</div></div>`}).join("");
 }
 function populate(){
   $("statusFilter").innerHTML='<option value="">All statuses</option>'+STATUSES.map(x=>`<option>${x}</option>`).join("");
@@ -233,15 +237,15 @@ function openBook(id){
   $("nicheInput").value=b.niche;
   $("typeInput").value=b.type;
   $("priceInput").value=b.price;
-  $("urlInput").value=b.url;
+  $("languageInput").value=b.language||"en-US";
   $("readerInput").value=b.reader;
   $("statusInput").value=b.status;
-  renderList();renderWorkflow();renderPublishing();renderAttachments();
+  renderList();renderWorkflow();renderPublishing();renderAttachments();renderBuild();
 }
 function setTab(name){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
-  $("workflowTab").classList.toggle("hidden",name!=="workflow");
-  $("publishingTab").classList.toggle("hidden",name!=="publishing");
+  for(const n of ["workflow","publishing","build"])$(n+"Tab").classList.toggle("hidden",n!==name);
+  if(name==="build")renderBuild();
 }
 
 /* ---------- Publishing tab ---------- */
@@ -291,11 +295,11 @@ function saveTextStep(key){
 function downloadStep(key){const b=selected(),step=STEPS.find(x=>x[0]===key);download(step[3],b[key]||"")}
 
 /* ---------- Export / import ---------- */
-function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nPrice: ${b.price}\nSales URL: ${b.url}\nCreated: ${b.created}\nUpdated: ${b.updated}\n\n=== RESEARCH ===\n${b.research}\n\n=== OUTLINE ===\n${b.outline}\n\n=== EDITORIAL ===\n${b.editorial}\n\n=== METADATA ===\n${b.metadata}\n${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
+function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n\n=== RESEARCH ===\n${b.research}\n\n=== OUTLINE ===\n${b.outline}\n\n=== EDITORIAL ===\n${b.editorial}\n\n=== METADATA ===\n${b.metadata}\n${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
 
 
 function parseBookTxt(text){
-  const b=blank(),fields={"ID":"id","Title":"title","Author":"author","Niche":"niche","Type":"type","Target reader":"reader","Status":"status","Price":"price","Sales URL":"url","Created":"created","Updated":"updated"};
+  const b=blank(),fields={"ID":"id","Title":"title","Author":"author","Niche":"niche","Type":"type","Target reader":"reader","Status":"status","Price":"price","Language":"language","Created":"created","Updated":"updated"};
   let section=null;
   for(const line of text.split(/\r?\n/)){
     if(line.startsWith("=== ")&&line.endsWith(" ===")){
@@ -410,6 +414,274 @@ async function importZip(file){
   return roots.length;
 }
 
+/* ---------- Miniaturas de portada en la lista ---------- */
+const coverUrls=new Map();
+async function refreshCovers(){
+  for(const url of coverUrls.values())URL.revokeObjectURL(url);
+  coverUrls.clear();
+  const keys=await fileOp("readonly",s=>s.getAllKeys());
+  for(const key of keys.filter(k=>String(k).endsWith(":cover"))){
+    const rec=await getFile(key);
+    if(rec)coverUrls.set(String(key).slice(0,-6),URL.createObjectURL(rec.blob));
+  }
+  renderList();
+}
+
+/* ---------- Pestaña Build: capítulos, previsualización y generación ---------- */
+const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}`;
+const PREVIEW_CSS=`body{font-family:Georgia,serif;line-height:1.6;max-width:680px;margin:0 auto;padding:24px;color:#222;background:#fdfdfb}h1,h2,h3{font-family:Helvetica,Arial,sans-serif}.title-page{text-align:center;padding:40px 0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}section{border-top:1px solid #e5e5e0;padding-top:20px;margin-top:28px}.menu{position:sticky;top:0;background:#fdfdfb;padding:8px 0;border-bottom:1px solid #e5e5e0;font-family:Helvetica,Arial,sans-serif;z-index:1}.menu summary{cursor:pointer;font-weight:600}.menu ol{margin:8px 0 0;padding-left:20px}blockquote{margin:1em 2em;font-style:italic;color:#444}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}img{max-width:100%}`;
+
+function xmlEsc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}
+function pad(n){return String(n).padStart(2,"0")}
+function anchorOf(t){return t.toLowerCase().replace(/[^\w\s-]/g,"").trim().replace(/\s+/g,"-")}
+function splitList(s){return String(s||"").split(/[\n,]/).map(x=>x.trim()).filter(Boolean)}
+function chapterTitle(c){const h=c.md.match(/^#\s+(.+)$/m);return h?h[1].trim():c.name.replace(/\.(md|txt)$/i,"").replace(/[-_]+/g," ")}
+function withH1(md,title){const first=md.trimStart().split("\n")[0];return /^#\s+/.test(first)?md:`# ${title}\n\n${md}`}
+
+/* Markdown -> HTML (subconjunto suficiente para libros) */
+function inline(s){
+  const codes=[];
+  let x=esc(s).replace(/`([^`]+)`/g,(_,c)=>{codes.push(c);return `\u0000${codes.length-1}\u0000`});
+  x=x.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2">$1</a>');
+  x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*/g,"$1<em>$2</em>");
+  return x.replace(/\u0000(\d+)\u0000/g,(_,i)=>`<code>${esc(codes[i])}</code>`);
+}
+function mdToHtml(md){
+  const lines=md.replace(/\r\n/g,"\n").split("\n");const out=[];let i=0;
+  const LIST=/^\s*([-*+]|\d+\.)\s+/, BLOCK=/^(#{1,6}\s|```|>|\s*([-*+]|\d+\.)\s|(\*\*\*|---|___)\s*$)/;
+  while(i<lines.length){
+    const l=lines[i];let m;
+    if(/^```/.test(l)){
+      const code=[];i++;
+      while(i<lines.length&&!/^```/.test(lines[i]))code.push(lines[i++]);
+      i++;out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);continue;
+    }
+    if(!l.trim()){i++;continue}
+    if((m=l.match(/^(#{1,6})\s+(.*)$/))){out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`);i++;continue}
+    if(/^(\*\*\*|---|___)\s*$/.test(l)){out.push("<hr/>");i++;continue}
+    if(/^>\s?/.test(l)){
+      const q=[];while(i<lines.length&&/^>\s?/.test(lines[i]))q.push(lines[i++].replace(/^>\s?/,""));
+      out.push(`<blockquote>${mdToHtml(q.join("\n"))}</blockquote>`);continue;
+    }
+    if(LIST.test(l)){
+      const ordered=/^\s*\d+\./.test(l),items=[];
+      while(i<lines.length&&LIST.test(lines[i]))items.push(lines[i++].replace(LIST,""));
+      const tag=ordered?"ol":"ul";
+      out.push(`<${tag}>${items.map(t=>`<li>${inline(t)}</li>`).join("")}</${tag}>`);continue;
+    }
+    const para=[];
+    while(i<lines.length&&lines[i].trim()&&!BLOCK.test(lines[i]))para.push(lines[i++]);
+    if(!para.length){i++;continue}
+    out.push(`<p>${inline(para.join(" "))}</p>`);
+  }
+  return out.join("\n");
+}
+function plain(md){
+  return md.replace(/^#{1,6}\s+/gm,"").replace(/\*\*(.+?)\*\*/g,"$1").replace(/\*(.+?)\*/g,"$1")
+    .replace(/`([^`]+)`/g,"$1").replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/^>\s?/gm,"")
+    .replace(/^(\s*)[*+]\s+/gm,"$1- ").replace(/^\s*(\*\*\*|---|___)\s*$/gm,"* * *");
+}
+
+/* Enlaza las entradas del índice del frontmatter con su capítulo */
+function linkIndex(md,titles,hrefOf){
+  if(!md)return md;
+  const order=titles.map((t,i)=>({t:t.trim(),i})).filter(x=>x.t).sort((a,b)=>b.t.length-a.t.length);
+  return md.split("\n").map(line=>{
+    if(/\]\(/.test(line))return line;
+    for(const {t,i} of order){
+      const re=new RegExp(`(?<![\\w])${escRe(t)}(?![\\w])`,"i");
+      if(re.test(line))return line.replace(re,m=>`[${m}](${hrefOf(i)})`);
+    }
+    return line;
+  }).join("\n");
+}
+function buildParts(m,target){
+  const titles=m.chapters.map(chapterTitle);
+  const hrefOf=target==="epub"?i=>`chapter-${pad(i+1)}.xhtml`:target==="md"?i=>`#${anchorOf(titles[i])}`:i=>`#ch-${i+1}`;
+  const fm=target==="txt"?m.pub.frontMatter:linkIndex(m.pub.frontMatter,titles,hrefOf);
+  return{
+    titles,fm,bm:m.pub.backMatter,back:m.pub.backText,
+    chapters:m.chapters.map((c,i)=>({title:titles[i],md:withH1(c.md,titles[i])}))
+  };
+}
+
+/* Datos para generar: metadatos guardados, capítulos y portada */
+async function buildModel(b){
+  const [chapters,cover]=await Promise.all([getChapters(b.id),getFile(`${b.id}:cover`)]);
+  return{title:b.title,author:b.author,lang:b.language||"en-US",pub:b.publishing||blankPublishing(),chapters,cover,id:b.id};
+}
+
+/* Formatos de salida */
+function buildMarkdown(m){
+  const p=buildParts(m,"md");
+  const parts=[`# ${m.title}`];
+  if(m.author)parts.push(`**${m.author}**`);
+  if(p.fm)parts.push(p.fm.trim());
+  parts.push(...p.chapters.map(c=>c.md.trim()));
+  if(p.bm)parts.push(p.bm.trim());
+  if(p.back)parts.push(`## About this book\n\n${p.back.trim()}`);
+  return parts.join("\n\n---\n\n")+"\n";
+}
+function buildTxt(m){
+  const p=buildParts(m,"txt");
+  const parts=[m.title];
+  if(m.author)parts.push(m.author);
+  if(p.fm)parts.push(plain(p.fm));
+  parts.push(...p.chapters.map(c=>plain(c.md)));
+  if(p.bm)parts.push(plain(p.bm));
+  if(p.back)parts.push("About this book\n\n"+plain(p.back));
+  return parts.join("\n\n* * *\n\n")+"\n";
+}
+function buildHtmlPreview(m,coverUrl){
+  const p=buildParts(m,"html");
+  const toc=p.titles.map((t,i)=>`<li><a href="#ch-${i+1}">${esc(t)}</a></li>`).join("");
+  return `<!DOCTYPE html><html lang="${esc(m.lang)}"><head><meta charset="utf-8"><style>${PREVIEW_CSS}</style></head><body>
+<section class="title-page" style="border:0">${coverUrl?`<img class="cover" src="${coverUrl}" alt="">`:""}<h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>
+<details class="menu"><summary>Contents</summary><ol>${toc}</ol></details>
+${p.fm?`<section class="front">${mdToHtml(p.fm)}</section>`:""}
+${p.chapters.map((c,i)=>`<section id="ch-${i+1}" class="chapter">${mdToHtml(c.md)}</section>`).join("")}
+${p.bm?`<section class="back">${mdToHtml(p.bm)}</section>`:""}
+${p.back?`<section class="back-cover"><h2>About this book</h2>${mdToHtml(p.back)}</section>`:""}
+</body></html>`;
+}
+function xhtml(title,body,lang){
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}" lang="${lang}"><head><meta charset="UTF-8"/><title>${xmlEsc(title)}</title><link rel="stylesheet" type="text/css" href="styles.css"/></head><body>${body}</body></html>`;
+}
+async function buildEpub(m){
+  const enc=new TextEncoder(),p=buildParts(m,"epub"),uuid=crypto.randomUUID?crypto.randomUUID():uid();
+  const pages=[],images=[];
+  pages.push({id:"title",href:"title.xhtml",title:m.title,noNav:true,body:`<section class="title-page"><h1>${xmlEsc(m.title)}</h1><p class="author">${xmlEsc(m.author)}</p></section>`});
+  if(m.cover){
+    const ext=(m.cover.name.split(".").pop()||"jpg").toLowerCase().replace("jpeg","jpg");
+    images.push({href:`images/cover.${ext}`,type:mimeOf(m.cover.name),data:new Uint8Array(await m.cover.blob.arrayBuffer())});
+    pages.unshift({id:"cover",href:"cover.xhtml",title:"Cover",noNav:true,body:`<section class="cover"><img src="images/cover.${ext}" alt="${xmlEsc(m.title)}"/></section>`});
+  }
+  if(p.fm)pages.push({id:"front",href:"front.xhtml",title:"Front matter",body:`<section>${mdToHtml(p.fm)}</section>`});
+  p.chapters.forEach((c,i)=>pages.push({id:`ch${i+1}`,href:`chapter-${pad(i+1)}.xhtml`,title:c.title,body:`<section id="ch-${i+1}" epub:type="chapter">${mdToHtml(c.md)}</section>`}));
+  if(p.bm)pages.push({id:"back",href:"back.xhtml",title:"Back matter",body:`<section>${mdToHtml(p.bm)}</section>`});
+  if(p.back)pages.push({id:"about",href:"about.xhtml",title:"About this book",body:`<section>${mdToHtml(p.back)}</section>`});
+
+  const navPages=pages.filter(pg=>!pg.noNav);
+  const navXhtml=xhtml("Contents",`<nav epub:type="toc" id="toc"><h1>Contents</h1><ol>${navPages.map(pg=>`<li><a href="${pg.href}">${xmlEsc(pg.title)}</a></li>`).join("")}</ol></nav>`,m.lang);
+  const ncx=`<?xml version="1.0" encoding="UTF-8"?>\n<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="urn:uuid:${uuid}"/><meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/></head><docTitle><text>${xmlEsc(m.title)}</text></docTitle><navMap>${navPages.map((pg,i)=>`<navPoint id="np-${i+1}" playOrder="${i+1}"><navLabel><text>${xmlEsc(pg.title)}</text></navLabel><content src="${pg.href}"/></navPoint>`).join("")}</navMap></ncx>`;
+
+  const subjects=[...new Set([...splitList(m.pub.tags),...splitList(m.pub.categories)])];
+  const desc=plain(m.pub.description||"").trim();
+  const now=new Date().toISOString().replace(/\.\d{3}Z$/,"Z");
+  const opf=`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="${xmlEsc(m.lang)}">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+<dc:identifier id="bookid">urn:uuid:${uuid}</dc:identifier>
+<dc:title>${xmlEsc(m.title)}</dc:title>
+<dc:creator>${xmlEsc(m.author)}</dc:creator>
+<dc:language>${xmlEsc(m.lang)}</dc:language>
+${desc?`<dc:description>${xmlEsc(desc)}</dc:description>`:""}
+${subjects.map(s=>`<dc:subject>${xmlEsc(s)}</dc:subject>`).join("\n")}
+<meta property="dcterms:modified">${now}</meta>
+${images.length?'<meta name="cover" content="cover-img"/>':""}
+</metadata>
+<manifest>
+${pages.map(pg=>`<item id="${pg.id}" href="${pg.href}" media-type="application/xhtml+xml"/>`).join("\n")}
+${images.map(im=>`<item id="cover-img" href="${im.href}" media-type="${im.type}" properties="cover-image"/>`).join("\n")}
+<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+<item id="css" href="styles.css" media-type="text/css"/>
+</manifest>
+<spine toc="ncx">
+${pages.map(pg=>`<itemref idref="${pg.id}"/>`).join("\n")}
+</spine>
+</package>`;
+  const container=`<?xml version="1.0" encoding="UTF-8"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`;
+
+  const entries=[
+    {name:"mimetype",data:enc.encode("application/epub+zip")},
+    {name:"META-INF/container.xml",data:enc.encode(container)},
+    {name:"OEBPS/content.opf",data:enc.encode(opf)},
+    {name:"OEBPS/nav.xhtml",data:enc.encode(navXhtml)},
+    {name:"OEBPS/toc.ncx",data:enc.encode(ncx)},
+    {name:"OEBPS/styles.css",data:enc.encode(EPUB_CSS)},
+    ...pages.map(pg=>({name:"OEBPS/"+pg.href,data:enc.encode(xhtml(pg.title,pg.body,m.lang))})),
+    ...images.map(im=>({name:"OEBPS/"+im.href,data:im.data}))
+  ];
+  return new Blob([buildZip(entries)],{type:"application/epub+zip"});
+}
+
+/* Interfaz de la pestaña */
+async function getChapters(id){return (await getFile(`${id}:chapters`))||[]}
+async function setChapters(id,list){await putFile(`${id}:chapters`,list)}
+function byName(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true})}
+async function renderBuild(){
+  const id=selectedId;if(!id)return;
+  const list=await getChapters(id);
+  if(selectedId!==id)return;
+  $("buildTab").innerHTML=`
+  <div class="card">
+    <div class="card-head"><h3>Chapters</h3><div class="card-actions">
+      <button class="secondary" onclick="$('chaptersInput').click()">Upload .md / .txt</button>
+      <button class="secondary" onclick="sortChapters()" ${list.length<2?"disabled":""}>Sort by name</button>
+    </div></div>
+    <input type="file" id="chaptersInput" accept=".md,.txt" multiple hidden onchange="uploadChapters(this)">
+    ${list.length?`<ol class="chapter-list">${list.map((c,i)=>`<li class="chapter-item"><span class="chapter-num">${i+1}</span><div class="chapter-info"><strong>${esc(chapterTitle(c))}</strong><span class="muted">${esc(c.name)}</span></div><div class="chapter-actions"><button class="icon-btn" onclick="moveChapter(${i},-1)" ${i===0?"disabled":""} title="Move up">▲</button><button class="icon-btn" onclick="moveChapter(${i},1)" ${i===list.length-1?"disabled":""} title="Move down">▼</button><button class="icon-btn danger-icon" onclick="removeChapter(${i})" title="Remove">×</button></div></li>`).join("")}</ol>`:`<p class="muted">No chapters yet. Upload .md or .txt files. They're added in file-name order, and you can reorder them here.</p>`}
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>Build</h3></div>
+    <div class="build-actions">
+      <button class="secondary" onclick="previewBook()">Preview</button>
+      <button class="primary" onclick="exportBuild('epub')">Generate EPUB</button>
+      <button class="secondary" onclick="exportBuild('md')">Generate Markdown</button>
+      <button class="secondary" onclick="exportBuild('txt')">Generate TXT</button>
+    </div>
+    <p class="muted">Preview and output use the saved metadata and files. The EPUB includes a navigable contents menu and the cover; Markdown and TXT include the front matter and back matter.</p>
+  </div>`;
+}
+async function uploadChapters(input){
+  const id=selectedId,files=[...input.files].filter(f=>/\.(md|txt)$/i.test(f.name));
+  input.value="";
+  if(!id)return;
+  if(!files.length)return showNotice("Unsupported files","Only .md and .txt files can be used as chapters.");
+  files.sort(byName);
+  const list=await getChapters(id);
+  for(const f of files)list.push({id:uid(),name:f.name,md:await f.text()});
+  await setChapters(id,list);
+  renderBuild();
+  toast(`${files.length} chapter${files.length===1?"":"s"} added`);
+}
+async function sortChapters(){const id=selectedId,list=await getChapters(id);list.sort(byName);await setChapters(id,list);renderBuild()}
+async function moveChapter(i,d){
+  const id=selectedId,list=await getChapters(id),j=i+d;
+  if(j<0||j>=list.length)return;
+  [list[i],list[j]]=[list[j],list[i]];
+  await setChapters(id,list);renderBuild();
+}
+function removeChapter(i){
+  askConfirm("Remove chapter","Remove this chapter from the book?","Remove",async()=>{
+    const id=selectedId,list=await getChapters(id);
+    list.splice(i,1);
+    await setChapters(id,list);renderBuild();toast("Chapter removed");
+  },true);
+}
+async function previewBook(){
+  const b=selected();if(!b)return;
+  const m=await buildModel(b);
+  if(!m.chapters.length)return showNotice("No chapters","Upload at least one .md or .txt file first.");
+  const coverUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
+  openModal("Preview",`<div class="preview-frame"></div>`);
+  const frame=document.createElement("iframe");
+  frame.className="preview-iframe";
+  frame.srcdoc=buildHtmlPreview(m,coverUrl);
+  $("modalBody").querySelector(".preview-frame").appendChild(frame);
+}
+async function exportBuild(fmt){
+  const b=selected();if(!b)return;
+  const m=await buildModel(b);
+  if(!m.chapters.length)return showNotice("No chapters","Upload at least one .md or .txt file first.");
+  if(fmt==="epub")saveBlob(`${fileSafe(b.title)}.epub`,await buildEpub(m));
+  else if(fmt==="md")saveBlob(`${fileSafe(b.title)}.md`,new Blob([buildMarkdown(m)],{type:"text/markdown;charset=utf-8"}));
+  else saveBlob(`${fileSafe(b.title)}.txt`,new Blob([buildTxt(m)],{type:"text/plain;charset=utf-8"}));
+  toast(`${fmt.toUpperCase()} generated`);
+}
+
 /* ---------- Event wiring ---------- */
 $("newBookBtn").onclick=newBook;
 $("emptyNewBtn").onclick=newBook;
@@ -419,8 +691,9 @@ $("deleteBtn").onclick=()=>{
   askConfirm("Delete book",`Delete "${b.title}"? This can't be undone.`,"Delete",async()=>{
     await delFile(`${b.id}:book`);
     await delFile(`${b.id}:cover`);
+    await delFile(`${b.id}:chapters`);
     books=books.filter(x=>x.id!==b.id);
-    persist();showEmpty();toast("Book deleted");
+    persist();showEmpty();await refreshCovers();toast("Book deleted");
   },true);
 };
 $("searchInput").oninput=renderList;
@@ -451,6 +724,7 @@ $("importInput").onchange=async e=>{
   saveSuggestions();
   e.target.value="";
   persist();
+  await refreshCovers();
   if(books[0])openBook(books[0].id);
   toast(imported?`Imported ${imported} book${imported===1?"":"s"}`:"Nothing imported");
 };
@@ -459,3 +733,4 @@ populate();
 setupCombos();
 renderList();
 if(books.length)openBook(books[0].id);else showEmpty();
+refreshCovers();
