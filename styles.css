@@ -359,7 +359,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .drop{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
 .drop .muted{margin:0}
 .attachment{display:flex;gap:14px;align-items:center}
-.cover-thumb{width:64px;height:88px;object-fit:cover;border-radius:6px;box-shadow:var(--depth);flex-shrink:0}
+.cover-thumb{width:64px;height:auto;aspect-ratio:128/205;object-fit:cover;border-radius:6px;box-shadow:var(--depth);flex-shrink:0}
 .file-icon{width:64px;height:64px;border-radius:12px;background:var(--surface-2);display:grid;place-items:center;font-size:28px;box-shadow:var(--depth);flex-shrink:0}
 .att-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .att-info strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
@@ -426,7 +426,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ---------- Cover thumbnail in the list ---------- */
 .book-item-row{display:flex;align-items:center;gap:10px}
 .book-item-text{flex:1;min-width:0}
-.book-thumb{width:26px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.18)}
+.book-thumb{width:26px;height:auto;aspect-ratio:128/205;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.18)}
 
 /* ---------- Adjustment of the $ symbol in the price ---------- */
 .price-wrap{position:relative;margin-top:6px}
@@ -660,3 +660,16 @@ button:disabled{opacity:.5;cursor:default}
 /* ---------- Prompt and backup tools ---------- */
 .pc-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .backup-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- Editor de respuestas: barra Code / Preview ---------- */
+.form-editor > .editor-bar{justify-content:flex-start}
+.form-editor > .md-preview{display:block;justify-content:initial}
+
+/* ---------- Bloques de código con botón de copiar (solo vistas previas) ---------- */
+.code-block{position:relative}
+.md-preview .code-block pre{padding-right:44px}
+.code-copy{position:absolute;top:8px;right:8px;width:28px;height:28px;display:grid;place-items:center;padding:0;border-radius:6px;border:1px solid var(--field-line);background:var(--surface);color:var(--text-2);cursor:pointer;box-shadow:none;opacity:.85}
+.code-copy:hover{opacity:1;color:var(--text);background:var(--surface-2)}
+.code-copy.copied{color:#30a14e}
+.code-copy svg{width:14px;height:14px}
+.code-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

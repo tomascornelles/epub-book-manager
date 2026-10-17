@@ -134,6 +134,7 @@ async function attachFile(kind,input){
   if(kind==="book"&&!/\.(epub|md)$/i.test(f.name))return showNotice("Unsupported file","Only .epub and .md files can be attached as the book.");
   if(kind==="cover"&&!f.type.startsWith("image/"))return showNotice("Unsupported file","The cover must be an image file.");
   await putFile(`${id}:${kind}`,{name:f.name,type:f.type,size:f.size,blob:f});
+  if(kind==="cover")await saveThumb(id,f);
   await renderAttachments();
   await refreshCovers();
   toast("File attached");
@@ -145,26 +146,27 @@ async function downloadAttachment(kind){
 function removeAttachment(kind){
   askConfirm("Remove file","Remove this attachment from the book?","Remove",async()=>{
     await delFile(`${selectedId}:${kind}`);
+    if(kind==="cover")await delFile(`${selectedId}:thumb`);
     await renderAttachments();
     await refreshCovers();
     toast("Attachment removed");
   },true);
 }
-function attachmentHtml(kind,rec){
+function attachmentHtml(kind,rec,preview){
   const input=`<input type="file" id="${kind}Input" accept="${kind==="book"?".epub,.md":"image/*"}" hidden onchange="attachFile('${kind}',this)">`;
   if(!rec){
     const label=kind==="book"?"Attach .epub or .md":"Attach cover image";
     return `${input}<div class="drop"><p class="muted">No file attached yet.</p><button class="primary" onclick="$('${kind}Input').click()">${label}</button></div>`;
   }
-  const thumb=kind==="cover"?`<img class="cover-thumb" src="${URL.createObjectURL(rec.blob)}" alt="Cover">`:`<div class="file-icon">📘</div>`;
+  const thumb=kind==="cover"?`<img class="cover-thumb" src="${URL.createObjectURL(preview||rec.blob)}" alt="Cover">`:`<div class="file-icon">📘</div>`;
   return `${input}<div class="attachment">${thumb}<div class="att-info"><strong>${esc(rec.name)}</strong><span class="muted">${fmtSize(rec.size)}</span></div><div class="att-actions"><button class="secondary" onclick="downloadAttachment('${kind}')">Download</button><button class="secondary" onclick="$('${kind}Input').click()">Replace</button><button class="danger" onclick="removeAttachment('${kind}')">Remove</button></div></div>`;
 }
 async function renderAttachments(){
   const id=selectedId;if(!id)return;
-  const [book,cover]=await Promise.all([getFile(`${id}:book`),getFile(`${id}:cover`)]);
+  const [book,cover,thumb]=await Promise.all([getFile(`${id}:book`),getFile(`${id}:cover`),getFile(`${id}:thumb`)]);
   if(selectedId!==id)return;
   $("bookFile").innerHTML=attachmentHtml("book",book);
-  $("coverFile").innerHTML=attachmentHtml("cover",cover);
+  $("coverFile").innerHTML=attachmentHtml("cover",cover,thumb?.blob);
 }
 
 /* ---------- Data ---------- */
@@ -455,7 +457,18 @@ function autoGrow(t){t.style.height="auto";t.style.height=t.scrollHeight+"px"}
 async function copyPrompt(){await navigator.clipboard.writeText($("promptText").value);toast("Prompt copied")}
 function editTextStep(id){
   const b=selected(),s=promptSteps.find(x=>x.id===id);if(!s)return;
-  openModal(`Edit / paste — ${s.title}`,`<div class="form-editor"><label>Content<textarea id="stepContent">${esc(b.steps[id]||"")}</textarea></label><div><button class="primary" onclick="saveTextStep('${id}')">Save</button></div></div>`);
+  openModal(`Edit / paste — ${s.title}`,`<div class="form-editor">
+    <div class="editor-bar"><div class="segmented"><button data-sview="code" class="active" onclick="setStepView('code')">Code</button><button data-sview="preview" onclick="setStepView('preview')">Preview</button></div></div>
+    <textarea id="stepContent" class="md-code" spellcheck="false">${esc(b.steps[id]||"")}</textarea>
+    <div id="stepPreview" class="md-preview hidden"></div>
+    <div><button class="primary" onclick="saveTextStep('${id}')">Save</button></div>
+  </div>`);
+}
+function setStepView(view){
+  document.querySelectorAll("[data-sview]").forEach(b=>b.classList.toggle("active",b.dataset.sview===view));
+  $("stepContent").classList.toggle("hidden",view!=="code");
+  $("stepPreview").classList.toggle("hidden",view!=="preview");
+  if(view==="preview")$("stepPreview").innerHTML=mdToHtml($("stepContent").value,{copy:true});
 }
 function saveTextStep(id){
   const b=selected();
@@ -997,14 +1010,40 @@ $("importInput").onchange=async e=>{
 };
 
 /* ---------- Cover thumbnails in the list ---------- */
+/* Miniatura de portada: 128x205, recorte centrado que cubre todo el marco. El original no se toca. */
+const THUMB_W=128,THUMB_H=205;
+async function makeThumb(blob){
+  const img=await createImageBitmap(blob);
+  const c=document.createElement("canvas");c.width=THUMB_W;c.height=THUMB_H;
+  const ctx=c.getContext("2d");
+  ctx.fillStyle="#ffffff";ctx.fillRect(0,0,THUMB_W,THUMB_H);
+  const k=Math.max(THUMB_W/img.width,THUMB_H/img.height),w=img.width*k,h=img.height*k;
+  ctx.imageSmoothingQuality="high";
+  ctx.drawImage(img,(THUMB_W-w)/2,(THUMB_H-h)/2,w,h);
+  img.close?.();
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("Thumbnail encoding failed")),"image/jpeg",0.9));
+}
+async function saveThumb(id,blob){
+  try{
+    const t=await makeThumb(blob);
+    await putFile(`${id}:thumb`,{name:"thumb.jpg",type:"image/jpeg",size:t.size,blob:t});
+    return true;
+  }catch(e){console.error("Could not create cover thumbnail:",e);return false}
+}
 const coverUrls=new Map();
 async function refreshCovers(){
   for(const url of coverUrls.values())URL.revokeObjectURL(url);
   coverUrls.clear();
   const keys=await fileOp("readonly",s=>s.getAllKeys());
   for(const key of keys.filter(k=>String(k).endsWith(":cover"))){
-    const rec=await getFile(key);
-    if(rec)coverUrls.set(String(key).slice(0,-6),URL.createObjectURL(rec.blob));
+    const id=String(key).slice(0,-6);
+    let rec=await getFile(`${id}:thumb`);
+    if(!rec){ // libros anteriores a las miniaturas: se generan una sola vez
+      const orig=await getFile(key);
+      if(orig&&await saveThumb(id,orig.blob))rec=await getFile(`${id}:thumb`);
+    }
+    if(!rec)rec=await getFile(key); // si no se puede generar, se usa el original
+    if(rec)coverUrls.set(id,URL.createObjectURL(rec.blob));
   }
   renderList();
 }
@@ -1044,7 +1083,9 @@ function inline(s){
   x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*/g,"$1<em>$2</em>");
   return x.replace(/\u0000(\d+)\u0000/g,(_,i)=>`<code>${esc(codes[i])}</code>`);
 }
-function mdToHtml(md){
+const COPY_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const CHECK_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+function mdToHtml(md,opts={}){
   const lines=md.replace(/\r\n/g,"\n").split("\n");const out=[];let i=0;
   const LIST=/^\s*([-*+]|\d+\.)\s+/, BLOCK=/^(#{1,6}\s|```|>|\s*([-*+]|\d+\.)\s|(\*\*\*|---|___)\s*$)/;
   while(i<lines.length){
@@ -1052,14 +1093,14 @@ function mdToHtml(md){
     if(/^```/.test(l)){
       const code=[];i++;
       while(i<lines.length&&!/^```/.test(lines[i]))code.push(lines[i++]);
-      i++;out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);continue;
+      i++;out.push(opts.copy?`<div class="code-block"><button type="button" class="code-copy" title="Copy code" aria-label="Copy code">${COPY_ICON}</button><pre><code>${esc(code.join("\n"))}</code></pre></div>`:`<pre><code>${esc(code.join("\n"))}</code></pre>`);continue;
     }
     if(!l.trim()){i++;continue}
     if((m=l.match(/^(#{1,6})\s+(.*)$/))){out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`);i++;continue}
     if(/^(\*\*\*|---|___)\s*$/.test(l)){out.push("<hr/>");i++;continue}
     if(/^>\s?/.test(l)){
       const q=[];while(i<lines.length&&/^>\s?/.test(lines[i]))q.push(lines[i++].replace(/^>\s?/,""));
-      out.push(`<blockquote>${mdToHtml(q.join("\n"))}</blockquote>`);continue;
+      out.push(`<blockquote>${mdToHtml(q.join("\n"),opts)}</blockquote>`);continue;
     }
     if(LIST.test(l)){
       const ordered=/^\s*\d+\./.test(l),items=[];
@@ -1365,7 +1406,7 @@ function setChapterView(view){
   document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   $("chapterMd").classList.toggle("hidden",view!=="code");
   $("chapterPreview").classList.toggle("hidden",view!=="preview");
-  if(view==="preview")$("chapterPreview").innerHTML=mdToHtml($("chapterMd").value);
+  if(view==="preview")$("chapterPreview").innerHTML=mdToHtml($("chapterMd").value,{copy:true});
 }
 async function saveChapterEdit(chapterId){
   const id=selectedId,md=$("chapterMd").value;
@@ -1400,6 +1441,7 @@ $("deleteBtn").onclick=()=>{
   askConfirm("Delete book",`Delete "${b.title}"? This can't be undone.`,"Delete",async()=>{
     await delFile(`${b.id}:book`);
     await delFile(`${b.id}:cover`);
+    await delFile(`${b.id}:thumb`);
     await delFile(`${b.id}:chapters`);
     books=books.filter(x=>x.id!==b.id);
     persist();showEmpty();await refreshCovers();toast("Book deleted");
@@ -1465,6 +1507,19 @@ document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
   if(!$("modal").classList.contains("hidden"))closeModal();
   $("appMenu").classList.add("hidden");
+});
+document.addEventListener("click",async e=>{
+  const btn=e.target.closest(".code-copy");if(!btn)return;
+  const text=btn.parentElement.querySelector("code").textContent;
+  let ok=false;
+  try{await navigator.clipboard.writeText(text);ok=true}catch{
+    const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();ok=document.execCommand("copy");ta.remove();
+  }
+  if(!ok){toast("Could not copy the code");return}
+  btn.classList.add("copied");btn.innerHTML=CHECK_ICON;
+  setTimeout(()=>{btn.classList.remove("copied");btn.innerHTML=COPY_ICON},1400);
+  toast("Code copied");
 });
 applyTheme();
 populate();
