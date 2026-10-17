@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KDP Book Manager</title><link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">KDP Book Manager</div>
+  <button id="newBookBtn" class="primary full">＋ New book</button>
+  <div class="side-section"><label>Books</label><input id="searchInput" placeholder="Search books…"></div>
+  <div class="side-section"><label>Status</label><select id="statusFilter"></select></div>
+  <div id="bookList" class="book-list"></div>
+  <div class="sidebar-bottom">
+    <button id="exportBookBtn" class="secondary full">Export current book</button>
+    <button id="exportAllBtn" class="secondary full">Export all books</button>
+    <label class="import-label full">Import project files<input id="importInput" type="file" accept=".txt,.md" multiple hidden></label>
+    <div id="storageNote" class="muted">Browser storage active.</div>
+  </div>
+</aside>
+
+<main class="main">
+<section id="emptyState" class="empty hidden"><h2>No book selected</h2><p>Create a book to start the workflow.</p><button id="emptyNewBtn" class="primary">Create first book</button></section>
+
+<section id="editor" class="hidden">
+  <div class="book-header">
+    <div class="title-wrap"><input id="titleInput" class="title-input" placeholder="Book title"><span id="authorName" class="subtitle-input"></span></div>
+    <div class="status-actions">
+      <select id="statusInput"></select>
+      <div class="top-actions"><button id="saveBtn" class="primary">Save</button><button id="deleteBtn" class="danger">Delete</button></div>
+    </div>
+  </div>
+  <div class="meta-grid">
+    <div class="field">
+      <label for="authorInput">Author</label>
+      <div class="combo"><input id="authorInput" autocomplete="off" placeholder="Escribe o elige un autor"><div id="authorSuggest" class="suggest hidden"></div></div>
+    </div>
+    <div class="field">
+      <label for="nicheInput">Niche</label>
+      <div class="combo"><input id="nicheInput" autocomplete="off" placeholder="Escribe o elige un nicho"><div id="nicheSuggest" class="suggest hidden"></div></div>
+    </div>
+    <div class="field">
+      <label for="typeInput">Type</label>
+      <div class="combo"><input id="typeInput" autocomplete="off" placeholder="Escribe o elige un tipo"><div id="typeSuggest" class="suggest hidden"></div></div>
+    </div>
+    <label>Price<div class="price-wrap"><span>$</span><input id="priceInput" type="number" step="0.01" min="0" placeholder="0.00"></div></label>
+    <label>Sales URL<input id="urlInput" type="url" placeholder="https://…"></label>
+    <label>Target reader<input id="readerInput"></label>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="workflow">Workflow</button>
+    <button class="tab" data-tab="publishing">Publishing</button>
+  </nav>
+  <section id="workflowTab"></section>
+  <section id="publishingTab" class="hidden"></section>
+</section>
+</main>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-card">
+  <div class="modal-head"><h2 id="modalTitle"></h2><button id="closeModal">×</button></div>
+  <div id="modalBody"></div>
+</div></div>
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+
+</body></html>
