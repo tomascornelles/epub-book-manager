@@ -600,3 +600,58 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pc-side{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
 .pc-id{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-3)}
 .pc-actions{flex-wrap:nowrap}
+
+/* ---------- Selects con el mismo estilo que #statusInput, en toda la app ---------- */
+select,.side-section select,.ps-cond select,.contents-select,.template-select,.status-actions select,#statusFilter{
+  -webkit-appearance:none;appearance:none;
+  padding:7px 32px 7px 12px;border-radius:8px;
+  background-color:var(--surface);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;background-size:10px 6px;
+  border:1px solid var(--field-line);box-shadow:0 1px 1px rgba(0,0,0,.04);
+  color:var(--text);outline:none;cursor:pointer;font-size:13px;
+}
+select:focus,.side-section select:focus,.ps-cond select:focus,.contents-select:focus,.template-select:focus,.status-actions select:focus,#statusFilter:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ---------- Botones de icono con tooltip ---------- */
+.icon-only{width:34px;height:34px;padding:0;display:grid;place-items:center;border-radius:8px;border:1px solid var(--field-line);background:var(--surface);color:var(--text);cursor:pointer;box-shadow:var(--depth)}
+.icon-only:hover{background:var(--surface-2)}
+.icon-only svg{width:16px;height:16px}
+.icon-only.danger-icon{color:var(--danger)}
+
+/* ---------- Archivados al final del listado ---------- */
+.archived-sep{margin:14px 4px 6px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)}
+
+/* ---------- Conflictos de importación ---------- */
+.conflict{padding:18px;display:grid;gap:14px}
+.conflict-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.conflict-card{background:var(--surface-2);border-radius:10px;padding:14px;display:grid;gap:10px;align-content:start;box-shadow:var(--depth)}
+.conflict-card h4{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)}
+.conflict-meta{margin:0;padding-left:16px;color:var(--text-2);font-size:13px;display:grid;gap:4px}
+.conflict .modal-text{margin:0}
+@media (max-width:650px){.conflict-grid{grid-template-columns:1fr}}
+
+/* ---------- Buscador con botón de limpiar ---------- */
+.search-wrap{position:relative}
+.search-wrap input{padding-right:30px!important}
+.search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:0;border-radius:50%;background:rgba(120,120,128,.28);color:var(--text);font-size:13px;line-height:18px;padding:0;cursor:pointer;display:none;text-align:center}
+.search-clear:hover{background:rgba(120,120,128,.45)}
+.search-wrap.has-value .search-clear{display:block}
+
+/* ---------- Selector de libros ---------- */
+.picker{padding:18px;display:grid;gap:12px}
+.picker .modal-text{margin:0}
+.pick-head{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;padding:0 4px}
+.pick-list{display:grid;gap:6px}
+.pick-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-2);box-shadow:var(--depth);cursor:pointer}
+.pick-row.warn{background:rgba(255,204,0,.24)}
+:root[data-theme="dark"] .pick-row.warn{background:rgba(255,204,0,.14)}
+.pick-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pick-row input[type=checkbox],.pick-head input[type=checkbox]{width:16px;height:16px;margin:0;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
+.warn-icon{color:#b98000;font-size:16px;cursor:help;flex-shrink:0}
+:root[data-theme="dark"] .warn-icon{color:#ffd60a}
+button:disabled{opacity:.5;cursor:default}
+
+/* ---------- Herramientas de prompts y copia de seguridad ---------- */
+.pc-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.backup-actions{display:flex;gap:8px;flex-wrap:wrap}

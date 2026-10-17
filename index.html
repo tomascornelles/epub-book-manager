@@ -10,18 +10,18 @@
 <aside class="sidebar">
   <div class="brand">KDP Book Manager</div>
   <button id="newBookBtn" class="primary full">＋ New book</button>
-  <div class="side-section"><label>Books</label><input id="searchInput" placeholder="Search books…"></div>
+  <div class="side-section"><label>Books</label><div class="search-wrap"><input id="searchInput" placeholder="Search books…"><button id="searchClear" class="search-clear" title="Clear search" aria-label="Clear search">×</button></div></div>
   <div class="side-section"><label>Status</label><select id="statusFilter"></select></div>
   <div id="bookList" class="book-list"></div>
   <div class="sidebar-bottom">
     <div class="menu-wrap">
       <button id="menuBtn" class="secondary full">☰ Menu</button>
       <div id="appMenu" class="app-menu hidden">
-        <button class="menu-item" id="exportBookBtn">Export current book</button>
-        <button class="menu-item" id="exportAllBtn">Export all books</button>
-        <button class="menu-item" id="importBtn">Import project files</button>
+        <button class="menu-item" id="exportAllBtn">Export books</button>
+        <button class="menu-item" id="importBtn">Import books</button>
         <div class="menu-sep"></div>
         <button class="menu-item" id="promptsBtn">Configure prompts</button>
+        <button class="menu-item" id="backupBtn">Backup</button>
         <div class="menu-sep"></div>
         <div class="menu-caption">Appearance</div>
         <div class="segmented">
@@ -32,7 +32,6 @@
       </div>
       <input id="importInput" type="file" accept=".txt,.md,.zip" multiple hidden>
     </div>
-    <div id="storageNote" class="muted">Browser storage active.</div>
   </div>
 </aside>
 
@@ -45,7 +44,7 @@
     <div class="title-wrap"><input id="titleInput" class="title-input" placeholder="Book title"></div>
     <div class="status-actions">
       <select id="statusInput"></select>
-      <div class="top-actions"><button id="saveBtn" class="primary">Save</button><button id="deleteBtn" class="danger">Delete</button></div>
+      <div class="top-actions"><button id="saveBtn" class="primary">Save</button><button id="exportBookBtn" class="icon-only" title="Export this book" aria-label="Export this book"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button><button id="deleteBtn" class="icon-only danger-icon" title="Delete book" aria-label="Delete book"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></button></div>
     </div>
   </div>
   <nav class="tabs">

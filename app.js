@@ -241,15 +241,22 @@ function saveCurrent(silent=false){
 }
 function newBook(){const b=blank();books.unshift(b);persist();openBook(b.id)}
 function showEmpty(){selectedId=null;$("editor").classList.add("hidden");$("emptyState").classList.remove("hidden");renderList()}
+let visibleBooks=[];
 function renderList(){
   const q=$("searchInput").value.trim().toLowerCase(),f=$("statusFilter").value;
   const vs=books
-    .filter(b=>f||b.status!==ARCHIVED||!!q)
     .filter(b=>!q||[b.title,b.author,b.niche].join(" ").toLowerCase().includes(q))
     .filter(b=>!f||b.status===f)
     .sort((a,b)=>STATUSES.indexOf(a.status)-STATUSES.indexOf(b.status)||(b.updated||"").localeCompare(a.updated||""));
-  $("exportAllBtn").textContent=`Export all ${books.length} book${books.length===1?"":"s"}`;
-  $("bookList").innerHTML=vs.map(b=>{const cover=coverUrls.get(b.id);return `<div class="book-item ${b.id===selectedId?"selected":""}" onclick="openBook('${b.id}')"><div class="book-item-row"><div class="book-item-text"><div class="book-item-title">${esc(b.status.split(" ")[0])} ${esc(b.title)}</div><div class="book-item-meta">${esc(b.author)}</div></div>${cover?`<img class="book-thumb" src="${cover}" alt="">`:""}</div></div>`}).join("");
+  visibleBooks=vs;
+  const item=b=>{const cover=coverUrls.get(b.id);return `<div class="book-item ${b.id===selectedId?"selected":""}" onclick="openBook('${b.id}')"><div class="book-item-row"><div class="book-item-text"><div class="book-item-title">${esc(b.status.split(" ")[0])} ${esc(b.title)}</div><div class="book-item-meta">${esc(b.author)}</div></div>${cover?`<img class="book-thumb" src="${cover}" alt="">`:""}</div></div>`};
+  const active=vs.filter(b=>b.status!==ARCHIVED),archived=vs.filter(b=>b.status===ARCHIVED);
+  let html=active.map(item).join("");
+  if(archived.length){
+    if(!f)html+=`<div class="archived-sep">Archivados</div>`;
+    html+=archived.map(item).join("");
+  }
+  $("bookList").innerHTML=html;
 }
 function populate(){
   $("statusFilter").innerHTML='<option value="">All statuses</option>'+STATUSES.map(x=>`<option>${x}</option>`).join("");
@@ -294,7 +301,7 @@ function openPromptConfig(){renderPromptList()}
 function condSummary(s){return (s.conditions||[]).map(c=>`${c.field} ${c.op} "${c.value}"`).join(" & ")||"Always"}
 function renderPromptList(){
   openModal("Configure prompts",`<div class="pc-body">
-    <div class="pc-head"><p class="modal-text">Steps appear in the workflow when they're visible and their conditions match the book.</p><button class="primary" onclick="editPromptStep()">New step</button></div>
+    <div class="pc-head"><p class="modal-text">Steps appear in the workflow when they're visible and their conditions match the book.</p><div class="pc-tools"><button class="secondary" onclick="exportPrompts()">Export all</button><button class="secondary" onclick="importPrompts()">Import all</button><button class="primary" onclick="editPromptStep()">New step</button></div></div>
     <div class="pc-list">${promptSteps.map(s=>`<div class="pc-row ${s.hidden?"is-hidden":""}">
       <div class="pc-info"><strong>${esc(s.title)}</strong><span class="muted">${esc(s.description)}</span><span class="pc-meta">${s.hidden?"Hidden · ":""}${esc(condSummary(s))}</span></div>
       <div class="pc-side"><span class="pc-id">step.${s.id}</span><div class="pc-actions">
@@ -518,38 +525,291 @@ async function exportBook(){
   saveBlob(`${fileSafe(b.title)}-book.zip`,buildZip(await bookEntries(b,"")));
   toast("Book exported");
 }
-async function exportAll(){
-  if(!books.length)return;
-  const entries=[];
-  for(const [i,b] of books.entries())entries.push(...await bookEntries(b,`${String(i+1).padStart(2,"0")}-${fileSafe(b.title)}/`));
-  saveBlob("kdp-books.zip",buildZip(entries));
-  toast("Export started");
+/* ---------- Selector de libros (export e import) ---------- */
+function openBookPicker({title,intro,items,confirmLabel,onConfirm}){
+  const sel=new Set(items.filter(i=>i.checked!==false).map(i=>String(i.id)));
+  openModal(title,`<div class="picker">
+    <p class="modal-text">${intro}</p>
+    <label class="pick-head"><input type="checkbox" id="pickAll"><span id="pickCount"></span></label>
+    <div class="pick-list">${items.map(i=>`<label class="pick-row ${i.warn?"warn":""}">
+      <input type="checkbox" data-id="${esc(i.id)}" ${sel.has(String(i.id))?"checked":""}>
+      <div class="pick-info"><strong>${esc(i.title)}</strong><span class="muted">${esc(i.meta||"")}</span></div>
+      ${i.warn?`<span class="warn-icon" title="${esc(i.warn)}" aria-label="${esc(i.warn)}">⚠</span>`:""}
+    </label>`).join("")}</div>
+    <div class="confirm-actions"><button class="secondary" id="pickCancel">Cancel</button><button class="primary" id="pickOk">${esc(confirmLabel)}</button></div>
+  </div>`);
+  const sync=()=>{
+    const all=items.length>0&&sel.size===items.length;
+    const pa=$("pickAll");
+    pa.checked=all;pa.indeterminate=sel.size>0&&!all;
+    $("pickCount").textContent=`${sel.size} of ${items.length} selected`;
+    $("pickOk").disabled=sel.size===0;
+  };
+  $("pickAll").onchange=e=>{
+    items.forEach(i=>sel[e.target.checked?"add":"delete"](String(i.id)));
+    document.querySelectorAll(".pick-list input[data-id]").forEach(cb=>cb.checked=e.target.checked);
+    sync();
+  };
+  document.querySelectorAll(".pick-list input[data-id]").forEach(cb=>cb.onchange=()=>{
+    cb.checked?sel.add(cb.dataset.id):sel.delete(cb.dataset.id);
+    sync();
+  });
+  $("pickCancel").onclick=closeModal;
+  $("pickOk").onclick=()=>{
+    const ids=items.filter(i=>sel.has(String(i.id))).map(i=>String(i.id));
+    closeModal();
+    onConfirm(ids);
+  };
+  sync();
 }
-async function importZip(file){
+
+/* ---------- Exportar libros ---------- */
+function openExportPicker(){
+  if(!visibleBooks.length)return showNotice("No books","There are no books in the current list to export.");
+  const q=$("searchInput").value.trim(),f=$("statusFilter").value;
+  const scope=[f?`status "${f}"`:"",q?`search "${q}"`:""].filter(Boolean).join(" and ")||"all books";
+  openBookPicker({
+    title:"Export books",
+    intro:`You're about to export these books (filter: ${esc(scope)}). Choose which ones to include.`,
+    items:visibleBooks.map(b=>({id:b.id,title:b.title,meta:`${b.author||"No author"} · ${b.status}`})),
+    confirmLabel:"Export",
+    onConfirm:exportBooks
+  });
+}
+async function exportBooks(ids){
+  const list=ids.map(id=>books.find(b=>b.id===id)).filter(Boolean);
+  if(!list.length)return;
+  const entries=[];
+  for(const [i,b] of list.entries())entries.push(...await bookEntries(b,`${String(i+1).padStart(2,"0")}-${fileSafe(b.title)}/`));
+  saveBlob("kdp-books.zip",buildZip(entries));
+  toast(`Exported ${list.length} book${list.length===1?"":"s"}`);
+}
+
+/* ---------- Prompts: exportar e importar todos ---------- */
+function exportPrompts(){
+  const data={type:"kdp-prompts",version:1,steps:promptSteps};
+  saveBlob("kdp-prompts.json",new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
+  toast("Prompts exported");
+}
+function importPrompts(){
+  const inp=document.createElement("input");
+  inp.type="file";inp.accept=".json,application/json";
+  inp.onchange=async()=>{
+    const f=inp.files[0];if(!f)return;
+    try{
+      const data=JSON.parse(await f.text());
+      const raw=Array.isArray(data)?data:data.steps;
+      if(!Array.isArray(raw)||!raw.every(s=>s&&s.id&&s.title&&typeof s.prompt==="string"))throw new Error("The file doesn't contain valid prompts.");
+      const steps=raw.map(s=>({description:"",conditions:[],hidden:false,...s}));
+      askConfirm("Import prompts",`Replace the current ${promptSteps.length} steps with ${steps.length} steps from the file?`,"Replace",()=>{
+        promptSteps=steps;savePromptSteps();renderPromptList();renderWorkflow();toast("Prompts imported");
+      },true);
+    }catch(err){showNotice("Import failed",err.message||"The file could not be read.")}
+  };
+  inp.click();
+}
+
+/* ---------- Copia de seguridad completa ---------- */
+const SETTINGS_KEYS=()=>[KEY,SUGGEST_KEY,PROMPT_KEY,THEME_KEY];
+function idbDump(){
+  return openDb().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction("files","readonly"),s=t.objectStore("files");
+    const keys=s.getAllKeys(),vals=s.getAll();
+    t.oncomplete=()=>res(keys.result.map((key,i)=>({key,value:vals.result[i]})));
+    t.onerror=()=>rej(t.error);
+  }));
+}
+function idbRestore(records){
+  return openDb().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction("files","readwrite"),s=t.objectStore("files");
+    s.clear();
+    for(const r of records)s.put(r.value,r.key);
+    t.oncomplete=()=>res();
+    t.onerror=()=>rej(t.error);
+  }));
+}
+async function createBackup(){
+  const enc=new TextEncoder(),entries=[];
+  const manifest={app:"kdp-book-manager",version:1,createdAt:new Date().toISOString(),localStorage:{},idb:[]};
+  for(const k of SETTINGS_KEYS()){const v=localStorage.getItem(k);if(v!==null)manifest.localStorage[k]=v}
+  let n=0;
+  for(const {key,value} of await idbDump()){
+    if(value&&value.blob instanceof Blob){
+      const file=`blobs/${String(++n).padStart(4,"0")}.bin`;
+      entries.push({name:file,data:new Uint8Array(await value.blob.arrayBuffer())});
+      manifest.idb.push({key,kind:"blob",file,fileName:value.name,type:value.type,size:value.size});
+    }else{
+      manifest.idb.push({key,kind:"json",value});
+    }
+  }
+  entries.unshift({name:"manifest.json",data:enc.encode(JSON.stringify(manifest))});
+  saveBlob(`kdp-backup-${new Date().toISOString().slice(0,10)}.zip`,buildZip(entries));
+  toast("Backup created");
+}
+async function restoreBackup(file){
+  const files=await readZip(await file.arrayBuffer());
+  const raw=files.get("manifest.json");
+  if(!raw)throw new Error("This file is not a valid backup.");
+  const manifest=JSON.parse(new TextDecoder().decode(raw));
+  if(manifest.app!=="kdp-book-manager")throw new Error("This file is not a valid backup.");
+  const records=manifest.idb.map(r=>r.kind==="blob"
+    ?{key:r.key,value:{name:r.fileName,type:r.type,size:r.size,blob:new Blob([files.get(r.file)],{type:r.type})}}
+    :{key:r.key,value:r.value});
+  await idbRestore(records);
+  for(const k of SETTINGS_KEYS())localStorage.removeItem(k);
+  for(const [k,v] of Object.entries(manifest.localStorage||{}))localStorage.setItem(k,v);
+  location.reload();
+}
+function openBackup(){
+  openModal("Backup",`<div class="conflict">
+    <p class="modal-text">A backup contains everything: books, chapters, cover and book files, prompts, suggestions and settings. Restoring one replaces all current data.</p>
+    <div class="backup-actions"><button class="primary" id="makeBackup">Create backup</button><button class="secondary" id="restoreBackupBtn">Restore backup…</button></div>
+  </div>`);
+  $("makeBackup").onclick=async()=>{closeModal();await createBackup()};
+  $("restoreBackupBtn").onclick=()=>{
+    const inp=document.createElement("input");
+    inp.type="file";inp.accept=".zip";
+    inp.onchange=()=>{
+      const f=inp.files[0];if(!f)return;
+      closeModal();
+      askConfirm("Restore backup","This replaces all current books, chapters, files, prompts and settings. Continue?","Restore",async()=>{
+        try{await restoreBackup(f)}catch(err){showNotice("Restore failed",err.message||"The backup could not be read.")}
+      },true);
+    };
+    inp.click();
+  };
+}
+
+/* ---------- Importación: detección de duplicados ---------- */
+async function readZipBooks(file){
   const files=await readZip(await file.arrayBuffer());
   const roots=[...files.keys()].filter(n=>n==="book.txt"||n.endsWith("/book.txt"));
-  for(const root of roots){
+  return roots.map(root=>{
     const dir=root.slice(0,root.length-"book.txt".length);
-    const b=parseBookTxt(new TextDecoder().decode(files.get(root)));
-    books=books.filter(x=>x.id!==b.id);
-    books.unshift(b);
-    rememberValues(b);
-    for(const kind of ["book","cover"]){
-      const prefix=`${dir}files/${kind}/`;
-      const hit=[...files.keys()].find(n=>n.startsWith(prefix)&&!n.slice(prefix.length).includes("/"));
-      if(hit){
-        const name=hit.split("/").pop(),data=files.get(hit);
-        await putFile(`${b.id}:${kind}`,{name,type:mimeOf(name),size:data.length,blob:new Blob([data],{type:mimeOf(name)})});
-      }
-    }
+    const book=parseBookTxt(new TextDecoder().decode(files.get(root)));
     const chPrefix=`${dir}chapters/`;
     const chNames=[...files.keys()]
       .filter(n=>n.startsWith(chPrefix)&&!n.slice(chPrefix.length).includes("/"))
       .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
-    await setChapters(b.id,chNames.map(n=>({id:uid(),name:n.slice(chPrefix.length).replace(/^\d+-/,""),md:new TextDecoder().decode(files.get(n))})));
-  }
-  return roots.length;
+    const chapters=chNames.map(n=>({id:uid(),name:n.slice(chPrefix.length).replace(/^\d+-/,""),md:new TextDecoder().decode(files.get(n))}));
+    const attachments={};
+    for(const kind of ["book","cover"]){
+      const prefix=`${dir}files/${kind}/`;
+      const hit=[...files.keys()].find(n=>n.startsWith(prefix)&&!n.slice(prefix.length).includes("/"));
+      if(hit){const name=hit.split("/").pop(),data=files.get(hit);attachments[kind]={name,type:mimeOf(name),size:data.length,data}}
+    }
+    return {book,chapters,attachments};
+  });
 }
+async function commitBook(c){
+  const b=c.book;
+  books=books.filter(x=>x.id!==b.id);
+  books.unshift(b);
+  rememberValues(b);
+  if(c.chapters)await setChapters(b.id,c.chapters);
+  for(const kind of ["book","cover"]){
+    const a=c.attachments&&c.attachments[kind];
+    if(a)await putFile(`${b.id}:${kind}`,{name:a.name,type:a.type,size:a.size,blob:new Blob([a.data],{type:a.type})});
+  }
+}
+function bookDiffs(cur,curCh,inc,incCh){
+  const diffs=[];
+  const fields={title:"Title",author:"Author",niche:"Niche",type:"Type",reader:"Target reader",price:"Price",language:"Language",status:"Status",archiveReason:"Archive reason"};
+  for(const k in fields)if(String(cur[k]??"")!==String(inc[k]??""))diffs.push(fields[k]);
+  for(const [k,label] of PUB_FIELDS)if(String(cur.publishing?.[k]??"")!==String(inc.publishing?.[k]??""))diffs.push(label);
+  for(const k of new Set([...Object.keys(cur.steps||{}),...Object.keys(inc.steps||{})]))
+    if(String(cur.steps?.[k]??"")!==String(inc.steps?.[k]??""))diffs.push(`Step ${k}`);
+  if(incCh){
+    const a=curCh.map(c=>c.name+"\n"+c.md).join("\u0001"),b=incCh.map(c=>c.name+"\n"+c.md).join("\u0001");
+    if(a!==b)diffs.push("Chapters");
+  }
+  return diffs;
+}
+function bookSummary(b,chCount){
+  return `<strong>${esc(b.title)}</strong>
+    <ul class="conflict-meta"><li>${esc(b.author||"No author")} · ${esc(b.status)}</li><li>Last edited: ${esc(new Date(b.updated).toLocaleString())}</li><li>Chapters: ${chCount}</li></ul>`;
+}
+function askImportConflict(cur,curCh,c){
+  return new Promise(resolve=>{
+    const incCh=c.chapters;
+    const diffs=bookDiffs(cur,curCh,c.book,incCh);
+    const incCount=incCh?incCh.length:"kept from current";
+    openModal("Duplicate book",`<div class="conflict">
+      <p class="modal-text">A book with the same ID already exists. Which version do you want to keep?</p>
+      <div class="conflict-grid">
+        <div class="conflict-card"><h4>Current</h4>${bookSummary(cur,curCh.length)}<button class="secondary" id="keepCurrent">Keep current</button></div>
+        <div class="conflict-card"><h4>Imported</h4>${bookSummary(c.book,incCount)}<button class="primary" id="useImported">Use imported</button></div>
+      </div>
+      <p class="modal-text"><strong>Differences:</strong> ${diffs.length?esc(diffs.join(", ")):"none, only the edit date differs"}</p>
+    </div>`);
+    let done=false;
+    const finish=v=>{if(done)return;done=true;modalOnClose=null;closeModal();resolve(v)};
+    $("keepCurrent").onclick=()=>finish("current");
+    $("useImported").onclick=()=>finish("imported");
+    modalOnClose=()=>finish("current");
+  });
+}
+function sameBook(cur,curCh,c){
+  return cur.updated===c.book.updated&&bookDiffs(cur,curCh,c.book,c.chapters).length===0;
+}
+async function importCandidates(candidates){
+  let imported=0;
+  for(const c of candidates){
+    const cur=books.find(x=>x.id===c.book.id);
+    if(cur){
+      const curCh=await getChapters(cur.id);
+      if(sameBook(cur,curCh,c))continue;
+      const choice=await askImportConflict(cur,curCh,c);
+      if(choice!=="imported")continue;
+    }
+    await commitBook(c);
+    imported++;
+  }
+  return imported;
+}
+$("importInput").onchange=async e=>{
+  const files=[...e.target.files];
+  e.target.value="";
+  let candidates=[];
+  try{
+    for(const f of files){
+      if(/\.zip$/i.test(f.name))candidates.push(...await readZipBooks(f));
+      else{
+        const t=await f.text();
+        if(f.name==="book.txt"||t.startsWith("KDP BOOK MANAGER"))candidates.push({book:parseBookTxt(t),chapters:null,attachments:null});
+      }
+    }
+  }catch(err){
+    return showNotice("Import failed",err.message||"The file could not be imported.");
+  }
+  if(!candidates.length)return showNotice("Nothing to import","No books were found in the selected files.");
+  const items=[];
+  for(const [i,c] of candidates.entries()){
+    const cur=books.find(x=>x.id===c.book.id);
+    const curCh=cur?await getChapters(cur.id):[];
+    const same=!!cur&&sameBook(cur,curCh,c);
+    const meta=`${c.book.author||"No author"} · ${c.book.status} · edited ${new Date(c.book.updated).toLocaleDateString()}`;
+    items.push({
+      id:String(i),title:c.book.title,
+      meta:same?`${meta} · identical to the one in your library`:meta,
+      checked:!same,
+      warn:cur&&!same?"A book with this ID already exists in your library":null
+    });
+  }
+  openBookPicker({
+    title:"Import books",
+    intro:"These books were found in the selected files. Choose which ones to import. Books marked ⚠ already exist in your library, and you'll be asked which version to keep.",
+    items,confirmLabel:"Import",
+    onConfirm:async ids=>{
+      const imported=await importCandidates(ids.map(i=>candidates[Number(i)]));
+      saveSuggestions();
+      persist();
+      await refreshCovers();
+      if(books[0])openBook(books[0].id);
+      toast(imported?`Imported ${imported} book${imported===1?"":"s"}`:"Nothing imported");
+    }
+  });
+};
 
 /* ---------- Miniaturas de portada en la lista ---------- */
 const coverUrls=new Map();
@@ -951,38 +1211,16 @@ $("deleteBtn").onclick=()=>{
     persist();showEmpty();await refreshCovers();toast("Book deleted");
   },true);
 };
-$("searchInput").oninput=renderList;
+const searchEl=$("searchInput");
+searchEl.addEventListener("input",()=>{searchEl.parentElement.classList.toggle("has-value",!!searchEl.value);renderList()});
+$("searchClear").onclick=()=>{searchEl.value="";searchEl.parentElement.classList.remove("has-value");renderList();searchEl.focus()};
 $("statusFilter").onchange=renderList;
 $("statusInput").onchange=()=>{syncArchiveField();saveCurrent(true)};
 $("closeModal").onclick=closeModal;
 $("modal").onclick=e=>{if(e.target.id==="modal")closeModal()};
 $("exportBookBtn").onclick=exportBook;
-$("exportAllBtn").onclick=exportAll;
+$("exportAllBtn").onclick=openExportPicker;
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
-$("importInput").onchange=async e=>{
-  let imported=0;
-  try{
-    for(const f of e.target.files){
-      if(/\.zip$/i.test(f.name)){imported+=await importZip(f);continue}
-      const t=await f.text();
-      if(f.name==="book.txt"||t.startsWith("KDP BOOK MANAGER")){
-        const b=parseBookTxt(t);
-        books=books.filter(x=>x.id!==b.id);
-        books.unshift(b);
-        rememberValues(b);
-        imported++;
-      }
-    }
-  }catch(err){
-    showNotice("Import failed",err.message||"The file could not be imported.");
-  }
-  saveSuggestions();
-  e.target.value="";
-  persist();
-  await refreshCovers();
-  if(books[0])openBook(books[0].id);
-  toast(imported?`Imported ${imported} book${imported===1?"":"s"}`:"Nothing imported");
-};
 
 /* ---------- Tema (día / noche / sistema) ---------- */
 const THEME_KEY="kdp-theme";
@@ -1006,6 +1244,7 @@ $("appMenu").addEventListener("click",e=>{
 });
 $("importBtn").onclick=()=>$("importInput").click();
 $("promptsBtn").onclick=openPromptConfig;
+$("backupBtn").onclick=openBackup;
 
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
