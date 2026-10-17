@@ -1,8 +1,14 @@
 const KEY="kdp-book-manager-v2";
 const SUGGEST_KEY="kdp-book-manager-suggestions";
 const DB_NAME="kdp-book-manager-files";
-const STATUSES=["💡 Idea","🔍 Research","📝 Outline","✏️ Writing","📑 Editing","📗 Ready for KDP","⏳ Waiting KDP","🚀 Published","📁 Paused","🚫 Blocked"];
-const HIDDEN_STATUSES=["🚀 Published","📁 Paused","🚫 Blocked"];
+const WIP="✏️ WIP",ARCHIVED="📁 Archived";
+const STATUSES=[WIP,"📗 Ready for KDP","⏳ Waiting KDP","🚀 Published",ARCHIVED];
+const LEGACY_STATUS={"Idea":WIP,"Research":WIP,"Outline":WIP,"Writing":WIP,"Editing":WIP,"Formatting":WIP,"Paused":ARCHIVED,"Blocked":ARCHIVED};
+function normalizeStatus(s){
+  if(STATUSES.includes(s))return s;
+  const str=String(s||""),label=str.includes(" ")?str.slice(str.indexOf(" ")+1):str;
+  return LEGACY_STATUS[label]||STATUSES[0];
+}
 const TYPES=["30-Day Challenge","Practical Guide","Novel"];
 const LANGUAGES=["en-US","es-ES"];
 const AUTHORS=["Tomas Cornelles","Thomas A. Carter","Theodore A. Collins","Trevor A. Clark","Tyler A. Cooper","Timothy A. Campbell","Theresa A. Carter","Taylor A. Collins","Tiffany A. Clark","Tessa A. Cooper","Tabitha A. Campbell"];
@@ -114,8 +120,8 @@ async function renderAttachments(){
 
 /* ---------- Data ---------- */
 function normalize(b){
-  const st=STATUSES.includes(b.status)?b.status:(STATUSES.find(s=>s.endsWith(" "+b.status))||STATUSES[0]);
-  b.status=st;
+  b.status=normalizeStatus(b.status);
+  b.archiveReason=b.archiveReason||"";
   const n=NICHES.find(([slug])=>slug===b.niche);
   if(n)b.niche=n[1];
   b.publishing={...blankPublishing(),...(b.publishing||{})};
@@ -125,7 +131,7 @@ function normalize(b){
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]").map(normalize)}catch{return[]}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(books));renderList()}
 function blankPublishing(){return Object.fromEntries(PUB_FIELDS.map(([k])=>[k,""]))}
-function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",language:"en-US",status:STATUSES[0],created:now,updated:now,research:"",outline:"",editorial:"",metadata:"",publishing:blankPublishing()}}
+function blank(){const now=new Date().toISOString();return{id:uid(),title:"New Book",author:"",niche:"",type:"Workbook",reader:"",price:"",language:"en-US",status:STATUSES[0],archiveReason:"",created:now,updated:now,research:"",outline:"",editorial:"",metadata:"",publishing:blankPublishing()}}
 function selected(){return books.find(b=>b.id===selectedId)}
 
 /* ---------- Autocomplete suggestions ---------- */
@@ -203,6 +209,7 @@ function saveCurrent(silent=false){
   b.language=$("languageInput").value.trim()||"en-US";
   b.reader=$("readerInput").value;
   b.status=$("statusInput").value;
+  b.archiveReason=$("archiveReasonInput").value.trim();
   b.publishing={};
   for(const [k] of PUB_FIELDS)b.publishing[k]=$("pub_"+k).value;
   b.updated=new Date().toISOString();
@@ -216,8 +223,8 @@ function template(s,b){return s.replaceAll("{{title}}",b.title).replaceAll("{{au
 function renderList(){
   const q=$("searchInput").value.trim().toLowerCase(),f=$("statusFilter").value;
   const vs=books
-    .filter(b=>f||!HIDDEN_STATUSES.includes(b.status))
-    .filter(b=>!q||[b.title,b.niche,b.status].join(" ").toLowerCase().includes(q))
+    .filter(b=>f||b.status!==ARCHIVED||!!q)
+    .filter(b=>!q||[b.title,b.author,b.niche].join(" ").toLowerCase().includes(q))
     .filter(b=>!f||b.status===f)
     .sort((a,b)=>STATUSES.indexOf(a.status)-STATUSES.indexOf(b.status)||(b.updated||"").localeCompare(a.updated||""));
   $("exportAllBtn").textContent=`Export all ${books.length} book${books.length===1?"":"s"}`;
@@ -240,6 +247,8 @@ function openBook(id){
   $("languageInput").value=b.language||"en-US";
   $("readerInput").value=b.reader;
   $("statusInput").value=b.status;
+  $("archiveReasonInput").value=b.archiveReason||"";
+  syncArchiveField();
   renderList();renderWorkflow();renderPublishing();renderAttachments();renderBuild();
 }
 function setTab(name){
@@ -295,11 +304,11 @@ function saveTextStep(key){
 function downloadStep(key){const b=selected(),step=STEPS.find(x=>x[0]===key);download(step[3],b[key]||"")}
 
 /* ---------- Export / import ---------- */
-function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n\n=== RESEARCH ===\n${b.research}\n\n=== OUTLINE ===\n${b.outline}\n\n=== EDITORIAL ===\n${b.editorial}\n\n=== METADATA ===\n${b.metadata}\n${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
+function bookTxt(b){return `KDP BOOK MANAGER V2\n\nID: ${b.id}\nTitle: ${b.title}\nAuthor: ${b.author}\nNiche: ${b.niche}\nType: ${b.type}\nTarget reader: ${b.reader}\nStatus: ${b.status}\nArchive reason: ${b.archiveReason||""}\nPrice: ${b.price}\nLanguage: ${b.language}\nCreated: ${b.created}\nUpdated: ${b.updated}\n\n=== RESEARCH ===\n${b.research}\n\n=== OUTLINE ===\n${b.outline}\n\n=== EDITORIAL ===\n${b.editorial}\n\n=== METADATA ===\n${b.metadata}\n${PUB_FIELDS.map(([k,label])=>`\n=== ${label.toUpperCase()} ===\n${b.publishing[k]}\n`).join("")}`}
 
 
 function parseBookTxt(text){
-  const b=blank(),fields={"ID":"id","Title":"title","Author":"author","Niche":"niche","Type":"type","Target reader":"reader","Status":"status","Price":"price","Language":"language","Created":"created","Updated":"updated"};
+  const b=blank(),fields={"ID":"id","Title":"title","Author":"author","Niche":"niche","Type":"type","Target reader":"reader","Status":"status","Archive reason":"archiveReason","Price":"price","Language":"language","Created":"created","Updated":"updated"};
   let section=null;
   for(const line of text.split(/\r?\n/)){
     if(line.startsWith("=== ")&&line.endsWith(" ===")){
@@ -682,6 +691,8 @@ async function exportBuild(fmt){
   toast(`${fmt.toUpperCase()} generated`);
 }
 
+function syncArchiveField(){$("archiveField").classList.toggle("hidden",$("statusInput").value!==ARCHIVED)}
+
 /* ---------- Event wiring ---------- */
 $("newBookBtn").onclick=newBook;
 $("emptyNewBtn").onclick=newBook;
@@ -698,7 +709,7 @@ $("deleteBtn").onclick=()=>{
 };
 $("searchInput").oninput=renderList;
 $("statusFilter").onchange=renderList;
-$("statusInput").onchange=()=>saveCurrent(true);
+$("statusInput").onchange=()=>{syncArchiveField();saveCurrent(true)};
 $("closeModal").onclick=closeModal;
 $("modal").onclick=e=>{if(e.target.id==="modal")closeModal()};
 $("exportBookBtn").onclick=exportBook;
