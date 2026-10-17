@@ -681,3 +681,9 @@ button:disabled{opacity:.5;cursor:default}
 .pc-row .grip{cursor:grab;color:var(--text-3);font-size:16px;line-height:1;user-select:none;flex-shrink:0}
 .pc-row.dragging{opacity:.45}
 .pc-row.drop-target{box-shadow:inset 0 2px 0 var(--accent),var(--depth)}
+
+/* ---------- Tablas Markdown en las vistas previas ---------- */
+.md-preview .table-wrap{overflow-x:auto;max-width:100%;margin:0 0 1em}
+.md-preview table{border-collapse:collapse;width:auto;max-width:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:14px}
+.md-preview th,.md-preview td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+.md-preview th{background:var(--surface-2);font-weight:600}

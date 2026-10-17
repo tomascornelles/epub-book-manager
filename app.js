@@ -1078,8 +1078,8 @@ async function refreshCovers(){
 }
 
 /* ---------- Build tab: chapters, preview and generation ---------- */
-const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}`;
-const BASE_CSS=`body{margin:0;color:#222;background:#fdfdfb;line-height:1.6}img{max-width:100%}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}blockquote{margin:1em 2em;font-style:italic;color:#444}section{padding-top:20px;margin-top:28px;border-top:1px solid #e5e5e0}.title-page{text-align:center;padding:40px 0;border:0;margin:0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}@media screen{body{max-width:680px;margin:0 auto;padding:24px}}@media print{body{background:#fff}section{border:0;margin:0;padding-top:0}.title-page{break-after:page;padding:30% 0 0}section.chapter{break-before:page}}`;
+const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}table{border-collapse:collapse;margin:0 0 1em;width:auto;max-width:100%}th,td{border:1px solid #d6d6d0;padding:6px 10px;text-align:left;vertical-align:top}th{background:#f1f1ee;font-weight:600}.table-wrap{overflow-x:auto;max-width:100%}`;
+const BASE_CSS=`body{margin:0;color:#222;background:#fdfdfb;line-height:1.6}img{max-width:100%}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}blockquote{margin:1em 2em;font-style:italic;color:#444}section{padding-top:20px;margin-top:28px;border-top:1px solid #e5e5e0}.title-page{text-align:center;padding:40px 0;border:0;margin:0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}@media screen{body{max-width:680px;margin:0 auto;padding:24px}}@media print{body{background:#fff}section{border:0;margin:0;padding-top:0}.title-page{break-after:page;padding:30% 0 0}section.chapter{break-before:page}}table{border-collapse:collapse;margin:0 0 1em;width:auto;max-width:100%}th,td{border:1px solid #d6d6d0;padding:6px 10px;text-align:left;vertical-align:top}th{background:#f1f1ee;font-weight:600}.table-wrap{overflow-x:auto;max-width:100%}`;
 const TEMPLATES_KEY="epub-templates-v1";
 const DEFAULT_TEMPLATES=[
   {id:"classic",label:"Classic",size:"A5",margin:"18mm 16mm",css:`body{font-family:Georgia,"Times New Roman",serif}h1,h2,h3{font-family:Georgia,serif;text-align:center}`},
@@ -1136,6 +1136,16 @@ function mdToHtml(md,opts={}){
       while(i<lines.length&&LIST.test(lines[i]))items.push(lines[i++].replace(LIST,""));
       const tag=ordered?"ol":"ul";
       out.push(`<${tag}>${items.map(t=>`<li>${inline(t)}</li>`).join("")}</${tag}>`);continue;
+    }
+    if(l.includes("|")&&i+1<lines.length&&/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/.test(lines[i+1])){
+      const cells=r=>r.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
+      const aligns=cells(lines[i+1]).map(c=>c.startsWith(":")&&c.endsWith(":")?"center":c.endsWith(":")?"right":c.startsWith(":")?"left":"");
+      const style=k=>aligns[k]?` style="text-align:${aligns[k]}"`:"";
+      const heads=cells(l);i+=2;
+      const rows=[];
+      while(i<lines.length&&lines[i].trim()&&lines[i].includes("|"))rows.push(cells(lines[i++]));
+      out.push(`<div class="table-wrap"><table><thead><tr>${heads.map((c,k)=>`<th${style(k)}>${inline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,k)=>`<td${style(k)}>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
     }
     const para=[];
     while(i<lines.length&&lines[i].trim()&&!BLOCK.test(lines[i]))para.push(lines[i++]);
