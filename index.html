@@ -2,6 +2,13 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <script>(function(){var p=localStorage.getItem("kdp-theme")||"system";var d=p==="system"?matchMedia("(prefers-color-scheme: dark)").matches:p==="dark";document.documentElement.dataset.theme=d?"dark":"light"})();</script>
+<meta name="description" content="Local-first manager for Amazon KDP books with an AI-assisted workflow. Installable and works offline.">
+<meta name="theme-color" content="#0a84ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KDP Books">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>KDP Book Manager</title><link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
 </head>
@@ -21,6 +28,7 @@
         <button class="menu-item" id="importBtn">Import books</button>
         <div class="menu-sep"></div>
         <button class="menu-item" id="promptsBtn">Configure prompts</button>
+        <button class="menu-item" id="templatesBtn">Configure templates</button>
         <button class="menu-item" id="backupBtn">Backup</button>
         <div class="menu-sep"></div>
         <div class="menu-caption">Appearance</div>
@@ -90,5 +98,6 @@
 </div></div>
 <div id="toast" class="toast"></div>
 <script src="app.js"></script>
+<script>if("serviceWorker"in navigator&&location.protocol.startsWith("http")){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(e=>console.error("SW:",e)))}</script>
 
 </body></html>

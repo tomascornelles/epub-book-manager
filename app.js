@@ -1,6 +1,7 @@
 const KEY="kdp-book-manager-v2";
 const SUGGEST_KEY="kdp-book-manager-suggestions";
 const DB_NAME="kdp-book-manager-files";
+const ARCHIVED_OPEN_KEY="kdp-archived-open";
 const WIP="✏️ WIP",ARCHIVED="📁 Archived";
 const STATUSES=[WIP,"📗 Ready for KDP","⏳ Waiting KDP","🚀 Published",ARCHIVED];
 const LEGACY_STATUS={"Idea":WIP,"Research":WIP,"Outline":WIP,"Writing":WIP,"Editing":WIP,"Formatting":WIP,"Paused":ARCHIVED,"Blocked":ARCHIVED};
@@ -253,11 +254,17 @@ function renderList(){
   const active=vs.filter(b=>b.status!==ARCHIVED),archived=vs.filter(b=>b.status===ARCHIVED);
   let html=active.map(item).join("");
   if(archived.length){
-    if(!f)html+=`<div class="archived-sep">Archivados</div>`;
-    html+=archived.map(item).join("");
+    if(f){html+=archived.map(item).join("")}
+    else{
+      const open=archivedOpen();
+      html+=`<button class="archived-toggle" onclick="toggleArchived()" aria-expanded="${open}"><span class="chev ${open?"open":""}">▸</span>Archivados<span class="archived-count">${archived.length}</span></button>`;
+      if(open)html+=archived.map(item).join("");
+    }
   }
   $("bookList").innerHTML=html;
 }
+function archivedOpen(){return localStorage.getItem(ARCHIVED_OPEN_KEY)==="1"}
+function toggleArchived(){localStorage.setItem(ARCHIVED_OPEN_KEY,archivedOpen()?"0":"1");renderList()}
 function populate(){
   $("statusFilter").innerHTML='<option value="">All statuses</option>'+STATUSES.map(x=>`<option>${x}</option>`).join("");
   $("statusInput").innerHTML=STATUSES.map(x=>`<option>${x}</option>`).join("");
@@ -586,31 +593,179 @@ async function exportBooks(ids){
 }
 
 /* ---------- Prompts: exportar e importar todos ---------- */
-function exportPrompts(){
-  const data={type:"kdp-prompts",version:1,steps:promptSteps};
-  saveBlob("kdp-prompts.json",new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
-  toast("Prompts exported");
+/* ---------- Helpers generales ---------- */
+function fmtDate(iso){
+  const d=new Date(iso);if(isNaN(d))return "";
+  const p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-function importPrompts(){
+
+/* ---------- Exportar / importar elementos con selector y conflictos ---------- */
+function openItemExport({kind,list,fileName,wrap,describe}){
+  openBookPicker({
+    title:`Export ${kind}s`,
+    intro:`Choose which ${kind}s to export.`,
+    items:list.map((x,i)=>{const d=describe(x);return{id:String(i),title:d.label,meta:d.detail}}),
+    confirmLabel:"Export",
+    onConfirm:ids=>{
+      const chosen=ids.map(i=>list[Number(i)]);
+      saveBlob(fileName,new Blob([JSON.stringify(wrap(chosen),null,2)],{type:"application/json"}));
+      toast(`Exported ${chosen.length} ${kind}${chosen.length===1?"":"s"}`);
+    }
+  });
+}
+function readJsonFile(accept,onData){
   const inp=document.createElement("input");
-  inp.type="file";inp.accept=".json,application/json";
+  inp.type="file";inp.accept=accept;
   inp.onchange=async()=>{
     const f=inp.files[0];if(!f)return;
-    try{
-      const data=JSON.parse(await f.text());
-      const raw=Array.isArray(data)?data:data.steps;
-      if(!Array.isArray(raw)||!raw.every(s=>s&&s.id&&s.title&&typeof s.prompt==="string"))throw new Error("The file doesn't contain valid prompts.");
-      const steps=raw.map(s=>({description:"",conditions:[],hidden:false,...s}));
-      askConfirm("Import prompts",`Replace the current ${promptSteps.length} steps with ${steps.length} steps from the file?`,"Replace",()=>{
-        promptSteps=steps;savePromptSteps();renderPromptList();renderWorkflow();toast("Prompts imported");
-      },true);
-    }catch(err){showNotice("Import failed",err.message||"The file could not be read.")}
+    try{onData(JSON.parse(await f.text()))}
+    catch(err){showNotice("Import failed",err.message||"The file could not be read.")}
   };
   inp.click();
 }
+function askItemConflict(kind,cur,inc,describe,diffs){
+  return new Promise(resolve=>{
+    const c=describe(cur),i=describe(inc);
+    openModal(`Duplicate ${kind}`,`<div class="conflict">
+      <p class="modal-text">A ${esc(kind)} with the same ID already exists. Which version do you want to keep?</p>
+      <div class="conflict-grid">
+        <div class="conflict-card"><h4>Current</h4><strong>${esc(c.label)}</strong><ul class="conflict-meta"><li>${esc(c.detail)}</li></ul><button class="secondary" id="keepCurrent">Keep current</button></div>
+        <div class="conflict-card"><h4>Imported</h4><strong>${esc(i.label)}</strong><ul class="conflict-meta"><li>${esc(i.detail)}</li></ul><button class="primary" id="useImported">Use imported</button></div>
+      </div>
+      <p class="modal-text"><strong>Differences:</strong> ${diffs.length?esc(diffs.join(", ")):"none"}</p>
+    </div>`);
+    let done=false;
+    const finish=v=>{if(done)return;done=true;modalOnClose=null;closeModal();resolve(v)};
+    $("keepCurrent").onclick=()=>finish("current");
+    $("useImported").onclick=()=>finish("imported");
+    modalOnClose=()=>finish("current");
+  });
+}
+function openItemImport({kind,incoming,existing,keys,describe,apply}){
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  const items=incoming.map((x,i)=>{
+    const cur=existing.find(e=>e.id===x.id),d=describe(x),identical=!!cur&&same(cur,x);
+    return{id:String(i),title:d.label,meta:identical?`${d.detail} · identical to the current one`:d.detail,checked:!identical,warn:cur&&!identical?`A ${kind} with this ID already exists`:null};
+  });
+  openBookPicker({
+    title:`Import ${kind}s`,
+    intro:`These ${kind}s were found in the file. Choose which ones to import. Items marked ⚠ already exist, and you'll be asked which version to keep.`,
+    items,confirmLabel:"Import",
+    onConfirm:async ids=>{
+      let result=existing.slice();
+      for(const i of ids.map(Number)){
+        const inc=incoming[i],idx=result.findIndex(e=>e.id===inc.id);
+        if(idx<0){result.push(inc);continue}
+        const cur=result[idx];
+        if(same(cur,inc))continue;
+        const diffs=keys.filter(([k])=>!same(cur[k]??null,inc[k]??null)).map(([,label])=>label);
+        const choice=await askItemConflict(kind,cur,inc,describe,diffs);
+        if(choice==="imported")result[idx]=inc;
+      }
+      apply(result);
+      toast(`Imported ${ids.length} ${kind}${ids.length===1?"":"s"}`);
+    }
+  });
+}
+
+/* ---------- Prompts: exportar e importar ---------- */
+function exportPrompts(){
+  openItemExport({
+    kind:"prompt step",list:promptSteps,fileName:"kdp-prompts.json",
+    wrap:steps=>({type:"kdp-prompts",version:1,steps}),
+    describe:x=>({label:x.title,detail:`${x.hidden?"Hidden · ":""}${condSummary(x)}`})
+  });
+}
+function importPrompts(){
+  readJsonFile(".json,application/json",data=>{
+    const raw=Array.isArray(data)?data:data.steps;
+    if(!Array.isArray(raw)||!raw.every(s=>s&&s.id&&s.title&&typeof s.prompt==="string"))throw new Error("The file doesn't contain valid prompts.");
+    const incoming=raw.map(s=>({description:"",conditions:[],hidden:false,...s}));
+    openItemImport({
+      kind:"prompt step",incoming,existing:promptSteps,
+      keys:[["title","Title"],["description","Description"],["prompt","Prompt"],["hidden","Visibility"],["conditions","Conditions"]],
+      describe:x=>({label:x.title,detail:`${x.hidden?"Hidden · ":""}${condSummary(x)}`}),
+      apply:steps=>{promptSteps=steps;savePromptSteps();renderPromptList();renderWorkflow()}
+    });
+  });
+}
+
+/* ---------- Plantillas: configurar, exportar e importar ---------- */
+let templateDraft=null;
+function openTemplateConfig(){renderTemplateList()}
+function renderTemplateList(){
+  openModal("Configure templates",`<div class="pc-body">
+    <div class="pc-head"><p class="modal-text">Templates style the Preview and PDF output. Markdown, TXT and EPUB don't use them.</p>
+      <div class="pc-tools"><button class="secondary" onclick="exportTemplates()">Export all</button><button class="secondary" onclick="importTemplates()">Import all</button><button class="primary" onclick="editTemplate()">New template</button></div></div>
+    <div class="pc-list">${templates.map(t=>`<div class="pc-row">
+      <div class="pc-info"><strong>${esc(t.label)}</strong><span class="pc-meta">${esc(t.size)} · margin ${esc(t.margin)}</span></div>
+      <div class="pc-side"><span class="pc-id">${esc(t.id)}</span><div class="pc-actions"><button class="secondary" onclick="editTemplate('${t.id}')">Edit</button><button class="danger" onclick="deleteTemplate('${t.id}')" ${templates.length<2?"disabled":""}>Delete</button></div></div>
+    </div>`).join("")}</div>
+  </div>`);
+}
+function editTemplate(id){
+  const t=id?templates.find(x=>x.id===id):null;
+  templateDraft=t?{...t}:{id:"tpl-"+uid().slice(0,8),label:"",size:"A5",margin:"18mm 16mm",css:""};
+  openModal(`${t?"Edit":"New"} template — ${templateDraft.id}`,`<div class="ps-form">
+    <label>Name<input id="tplLabel"></label>
+    <label>Page size<select id="tplSize"><option>A4</option><option>A5</option><option>Letter</option></select></label>
+    <label>Margin<input id="tplMargin" placeholder="18mm 16mm"></label>
+    <label>CSS<textarea id="tplCss" class="ps-prompt" spellcheck="false"></textarea></label>
+    <p class="muted ps-note">The shared base styles (cover page, chapter page breaks, preview width) are applied first; this CSS is added after them.</p>
+    <div class="confirm-actions"><button class="secondary" onclick="renderTemplateList()">Cancel</button><button class="primary" onclick="saveTemplate()">Save template</button></div>
+  </div>`);
+  $("tplLabel").value=templateDraft.label;
+  $("tplSize").value=templateDraft.size;
+  $("tplMargin").value=templateDraft.margin;
+  const css=$("tplCss");
+  css.value=templateDraft.css;
+  css.oninput=()=>autoGrow(css);
+  autoGrow(css);
+  modalOnClose=renderTemplateList;
+}
+function saveTemplate(){
+  templateDraft.label=$("tplLabel").value.trim()||"Untitled";
+  templateDraft.size=$("tplSize").value;
+  templateDraft.margin=$("tplMargin").value.trim()||"18mm";
+  templateDraft.css=$("tplCss").value;
+  const i=templates.findIndex(x=>x.id===templateDraft.id);
+  if(i>=0)templates[i]=templateDraft;else templates.push(templateDraft);
+  saveTemplates();
+  renderTemplateList();
+  if(selectedId)renderBuild();
+  toast("Template saved");
+}
+function deleteTemplate(id){
+  const t=templates.find(x=>x.id===id);if(!t||templates.length<2)return;
+  askConfirm("Delete template",`Delete "${t.label}"?`,"Delete",()=>{
+    templates=templates.filter(x=>x.id!==id);
+    if(currentTemplate===id)currentTemplate=templates[0].id;
+    saveTemplates();renderTemplateList();if(selectedId)renderBuild();toast("Template deleted");
+  },true);
+}
+function exportTemplates(){
+  openItemExport({
+    kind:"template",list:templates,fileName:"kdp-templates.json",
+    wrap:list=>({type:"kdp-templates",version:1,templates:list}),
+    describe:x=>({label:x.label,detail:`${x.size} · margin ${x.margin}`})
+  });
+}
+function importTemplates(){
+  readJsonFile(".json,application/json",data=>{
+    const raw=Array.isArray(data)?data:data.templates;
+    if(!Array.isArray(raw)||!raw.every(t=>t&&t.id&&t.label&&t.size&&t.margin&&typeof t.css==="string"))throw new Error("The file doesn't contain valid templates.");
+    openItemImport({
+      kind:"template",incoming:raw,existing:templates,
+      keys:[["label","Name"],["size","Page size"],["margin","Margin"],["css","CSS"]],
+      describe:x=>({label:x.label,detail:`${x.size} · margin ${x.margin}`}),
+      apply:list=>{templates=list;saveTemplates();if(!templates.some(t=>t.id===currentTemplate))currentTemplate=templates[0].id;renderTemplateList();if(selectedId)renderBuild()}
+    });
+  });
+}
 
 /* ---------- Copia de seguridad completa ---------- */
-const SETTINGS_KEYS=()=>[KEY,SUGGEST_KEY,PROMPT_KEY,THEME_KEY];
+const SETTINGS_KEYS=()=>[KEY,SUGGEST_KEY,PROMPT_KEY,TEMPLATES_KEY,THEME_KEY];
 function idbDump(){
   return openDb().then(d=>new Promise((res,rej)=>{
     const t=d.transaction("files","readonly"),s=t.objectStore("files");
@@ -727,7 +882,7 @@ function bookDiffs(cur,curCh,inc,incCh){
 }
 function bookSummary(b,chCount){
   return `<strong>${esc(b.title)}</strong>
-    <ul class="conflict-meta"><li>${esc(b.author||"No author")} · ${esc(b.status)}</li><li>Last edited: ${esc(new Date(b.updated).toLocaleString())}</li><li>Chapters: ${chCount}</li></ul>`;
+    <ul class="conflict-meta"><li>${esc(b.author||"No author")} · ${esc(b.status)}</li><li>Last edited: ${esc(fmtDate(b.updated))}</li><li>Chapters: ${chCount}</li></ul>`;
 }
 function askImportConflict(cur,curCh,c){
   return new Promise(resolve=>{
@@ -788,7 +943,7 @@ $("importInput").onchange=async e=>{
     const cur=books.find(x=>x.id===c.book.id);
     const curCh=cur?await getChapters(cur.id):[];
     const same=!!cur&&sameBook(cur,curCh,c);
-    const meta=`${c.book.author||"No author"} · ${c.book.status} · edited ${new Date(c.book.updated).toLocaleDateString()}`;
+    const meta=`${c.book.author||"No author"} · ${c.book.status} · edited ${fmtDate(c.book.updated)}`;
     items.push({
       id:String(i),title:c.book.title,
       meta:same?`${meta} · identical to the one in your library`:meta,
@@ -827,11 +982,19 @@ async function refreshCovers(){
 /* ---------- Pestaña Build: capítulos, previsualización y generación ---------- */
 const EPUB_CSS=`body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1,h2,h3{font-family:Helvetica,Arial,sans-serif;line-height:1.2}h1{margin-top:1.2em}img{max-width:100%}.cover{text-align:center;margin:0;padding:0}.cover img{max-height:100%}.title-page{text-align:center;margin-top:30%}.author{font-style:italic}blockquote{margin:1em 2em;font-style:italic}pre{white-space:pre-wrap;font-size:.9em}ol,ul{padding-left:1.4em}`;
 const BASE_CSS=`body{margin:0;color:#222;background:#fdfdfb;line-height:1.6}img{max-width:100%}pre{white-space:pre-wrap;background:#f1f1ee;padding:12px;border-radius:6px}code{font-size:.9em}blockquote{margin:1em 2em;font-style:italic;color:#444}section{padding-top:20px;margin-top:28px;border-top:1px solid #e5e5e0}.title-page{text-align:center;padding:40px 0;border:0;margin:0}.title-page .cover{max-width:260px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);margin-bottom:28px}.author{font-style:italic;color:#666}@media screen{body{max-width:680px;margin:0 auto;padding:24px}}@media print{body{background:#fff}section{border:0;margin:0;padding-top:0}.title-page{break-after:page;padding:30% 0 0}section.chapter{break-before:page}}`;
-const TEMPLATES={
-  classic:{label:"Classic",size:"A5",margin:"18mm 16mm",css:`body{font-family:Georgia,"Times New Roman",serif}h1,h2,h3{font-family:Georgia,serif;text-align:center}`},
-  modern:{label:"Modern",size:"A4",margin:"20mm 18mm",css:`body{font-family:Helvetica,Arial,sans-serif}h1{color:#3b67f2;border-bottom:3px solid #3b67f2;padding-bottom:.2em}h2,h3{color:#222}.author{color:#3b67f2;font-style:normal}`},
-  minimal:{label:"Minimal",size:"A5",margin:"25mm 22mm",css:`body{font-family:"Times New Roman",serif;font-size:1.05em}h1,h2,h3{font-weight:normal;letter-spacing:.02em}section{border:0}`}
-};
+const TEMPLATES_KEY="kdp-templates-v1";
+const DEFAULT_TEMPLATES=[
+  {id:"classic",label:"Classic",size:"A5",margin:"18mm 16mm",css:`body{font-family:Georgia,"Times New Roman",serif}h1,h2,h3{font-family:Georgia,serif;text-align:center}`},
+  {id:"modern",label:"Modern",size:"A4",margin:"20mm 18mm",css:`body{font-family:Helvetica,Arial,sans-serif}h1{color:#3b67f2;border-bottom:3px solid #3b67f2;padding-bottom:.2em}h2,h3{color:#222}.author{color:#3b67f2;font-style:normal}`},
+  {id:"minimal",label:"Minimal",size:"A5",margin:"25mm 22mm",css:`body{font-family:"Times New Roman",serif;font-size:1.05em}h1,h2,h3{font-weight:normal;letter-spacing:.02em}section{border:0}`}
+];
+function loadTemplates(){
+  try{const t=JSON.parse(localStorage.getItem(TEMPLATES_KEY)||"null");if(Array.isArray(t)&&t.length)return t}catch{}
+  return JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+}
+function saveTemplates(){localStorage.setItem(TEMPLATES_KEY,JSON.stringify(templates))}
+let templates=loadTemplates();
+function tplById(id){return templates.find(t=>t.id===id)||templates[0]}
 let currentTemplate="classic";
 let currentFormat="epub";
 
@@ -938,7 +1101,7 @@ function buildTxt(m){
   return parts.join("\n\n* * *\n\n")+"\n";
 }
 function buildDocument(m,coverUrl,tpl,mode){
-  const t=TEMPLATES[tpl]||TEMPLATES.classic;
+  const t=tplById(tpl);
   const p=buildParts(m,"html");
   const print=mode==="print";
   const printCss=print?`@page{size:${t.size};margin:${t.margin}}
@@ -1050,6 +1213,7 @@ function fitTab(id){
 window.addEventListener("resize",()=>fitTab("buildTab"));
 async function renderBuild(){
   const id=selectedId;if(!id)return;
+  currentTemplate=tplById(currentTemplate).id;
   const b=selected();
   const m=await buildModel(b);
   if(selectedId!==id)return;
@@ -1068,7 +1232,7 @@ async function renderBuild(){
   </div>`;
   $("buildTab").innerHTML=`
   <div class="card build-card">
-    <div class="card-head"><select id="contentsSelect" class="contents-select" onchange="jumpToChapter(this.value)" ${count?"":"disabled"}><option value="">Contents</option>${m.chapters.map((c,i)=>`<option value="ch-${i+1}">${esc(chapterTitle(c))}</option>`).join("")}</select><div class="build-controls"><div class="segmented format-group">${["epub","md","txt","pdf"].map(f=>`<button class="${currentFormat===f?"active":""}" onclick="setFormat('${f}')">${f}</button>`).join("")}</div>${currentFormat==="pdf"?`<select id="templateSelect" class="contents-select template-select" onchange="currentTemplate=this.value;renderBuild()" title="Template">${Object.entries(TEMPLATES).map(([k,t])=>`<option value="${k}" ${k===currentTemplate?"selected":""}>${t.label}</option>`).join("")}</select>`:""}<button class="primary" onclick="exportBuild(currentFormat)">Generate</button></div></div>
+    <div class="card-head"><select id="contentsSelect" class="contents-select" onchange="jumpToChapter(this.value)" ${count?"":"disabled"}><option value="">Contents</option>${m.chapters.map((c,i)=>`<option value="ch-${i+1}">${esc(chapterTitle(c))}</option>`).join("")}</select><div class="build-controls"><div class="segmented format-group">${["epub","md","txt","pdf"].map(f=>`<button class="${currentFormat===f?"active":""}" onclick="setFormat('${f}')">${f}</button>`).join("")}</div>${`<select id="templateSelect" class="contents-select template-select" onchange="currentTemplate=this.value;renderBuild()" title="Template">${templates.map(t=>`<option value="${t.id}" ${t.id===currentTemplate?"selected":""}>${esc(t.label)}</option>`).join("")}</select>`}<button class="primary" onclick="exportBuild(currentFormat)">Generate</button></div></div>
     <div class="build-preview" id="previewBox"></div>
   </div>`;
   const box=$("previewBox");
@@ -1244,6 +1408,7 @@ $("appMenu").addEventListener("click",e=>{
 });
 $("importBtn").onclick=()=>$("importInput").click();
 $("promptsBtn").onclick=openPromptConfig;
+$("templatesBtn").onclick=openTemplateConfig;
 $("backupBtn").onclick=openBackup;
 
 document.addEventListener("keydown",e=>{

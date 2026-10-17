@@ -1,0 +1,6 @@
+# Netlify: que el navegador compruebe siempre si hay un sw.js nuevo
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Content-Type: application/manifest+json

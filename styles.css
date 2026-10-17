@@ -620,7 +620,12 @@ select:focus,.side-section select:focus,.ps-cond select:focus,.contents-select:f
 .icon-only.danger-icon{color:var(--danger)}
 
 /* ---------- Archivados al final del listado ---------- */
-.archived-sep{margin:14px 4px 6px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)}
+.archived-toggle{display:flex;align-items:center;gap:6px;width:calc(100% - 8px);margin:14px 4px 6px;padding:10px 0 0;background:none;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);cursor:pointer;text-align:left}
+.archived-toggle:hover{color:var(--text-2)}
+.archived-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.archived-toggle .chev{display:inline-block;width:8px;font-size:9px;transition:transform .15s}
+.archived-toggle .chev.open{transform:rotate(90deg)}
+.archived-count{margin-left:auto;font-weight:500;letter-spacing:0}
 
 /* ---------- Conflictos de importación ---------- */
 .conflict{padding:18px;display:grid;gap:14px}
