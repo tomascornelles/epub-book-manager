@@ -673,3 +673,11 @@ button:disabled{opacity:.5;cursor:default}
 .code-copy.copied{color:#30a14e}
 .code-copy svg{width:14px;height:14px}
 .code-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- Steps reordenables por arrastre ---------- */
+.pc-row{cursor:grab}
+.pc-row:active{cursor:grabbing}
+.pc-row .pc-info{flex:1;min-width:0;text-align:left;align-items:flex-start}
+.pc-row .grip{cursor:grab;color:var(--text-3);font-size:16px;line-height:1;user-select:none;flex-shrink:0}
+.pc-row.dragging{opacity:.45}
+.pc-row.drop-target{box-shadow:inset 0 2px 0 var(--accent),var(--depth)}

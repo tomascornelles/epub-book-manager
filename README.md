@@ -15,7 +15,7 @@ ePub Book Manager runs entirely in the browser. There is no server, no account a
 - **Status tracking:** `✏️ WIP`, `📗 Ready`, `⏳ Waiting`, `🚀 Published`, `📁 Archived`. Archiving asks for a reason.
 - **AI-assisted workflow:** configurable prompt steps. View a prompt, paste the response, and keep it with the book. Steps appear or hide depending on the book's type, niche, status, language or author.
 - **Prompt placeholders** such as `{{title}}`, `{{author}}`, `{{description}}`, `{{frontMatter}}` and `{{step.ID}}` to reuse earlier answers.
-- **Publishing metadata:** Amazon description, back cover text, tags, categories, front matter and back matter.
+- **Publishing metadata:** Publisher description, back cover text, keywords, categories, front matter and back matter.
 - **Chapters:** upload `.md` and `.txt` files, create and edit chapters with a Code/Preview editor, reorder by drag and drop or with ▲▼, and sort by name.
 - **Build and preview:** table of contents navigation, selectable templates, and output as **EPUB**, **Markdown**, **TXT** or **PDF** (PDF uses the browser's print dialog, with a full-page cover when one is attached).
 - **Suggestions:** author, niche, type and language fields autocomplete from values you have used before.
@@ -66,7 +66,7 @@ python3 -m http.server 8080
 ## Using the app
 
 ### Workflow tab
-Each step is a card with **View prompt** and **Paste / Edit response** actions. A card turns green once it contains a response. Prompt steps are managed from *☰ Menu → Configure prompts*, where you can create, edit, hide, delete, export and import them.
+Each step is a card with **Prompt** and **Response** actions. A card turns green once it contains a response. Prompt steps are managed from *☰ Menu → Configure prompts*, where you can create, edit, reorder by drag and drop, hide, delete, export and import them.
 
 ### Publishing tab
 Attach the book file (`.epub` or `.md`) and the cover image. Both are stored in IndexedDB. Fill in the metadata fields that your publishing platform asks for.

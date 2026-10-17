@@ -14,8 +14,10 @@ const TYPES=["30-Day Challenge","Practical Guide","Novel"];
 const LANGUAGES=["en-US","es-ES"];
 const AUTHORS=["Tomas Cornelles","Thomas A. Carter","Theodore A. Collins","Trevor A. Clark","Tyler A. Cooper","Timothy A. Campbell","Theresa A. Carter","Taylor A. Collins","Tiffany A. Clark","Tessa A. Cooper","Tabitha A. Campbell"];
 const NICHES=[["productivity","Productivity & Time Management"],["personal-finance","Personal Finance & Money Management"],["self-improvement","Self-Improvement & Personal Development"],["health-and-wellness","Health & Wellness"],["fitness","Fitness & Exercise"],["mindfulness","Mindfulness & Stress Management"],["relationships","Relationships & Communication"],["parenting","Parenting & Family"],["career-and-business","Career & Business"],["hobbies-and-lifestyle","Hobbies & Lifestyle"],["scify","Scify"],["historical-fiction","Historical Fiction"]];
-const PUB_FIELDS=[["description","Amazon description",9],["backText","Back cover text",6],["tags","Tags",4],["categories","Categories",4],["frontMatter","Front matter",8],["backMatter","Back matter",8]];
+const PUB_FIELDS=[["description","Publisher description",9],["backText","Back cover text",6],["tags","Keywords",4],["categories","Categories",4],["frontMatter","Front matter",8],["backMatter","Back matter",8]];
 const PUB_HEADERS=Object.fromEntries(PUB_FIELDS.map(([k,label])=>[label.toUpperCase(),k]));
+PUB_HEADERS["AMAZON DESCRIPTION"]="description"; // compatibilidad con book.txt exportados antes
+PUB_HEADERS["TAGS"]="tags"; // compatibilidad con book.txt exportados antes
 
 const PROMPTS={
 research:`You are a publishing research assistant.\n\nBOOK IDEA:\n{{title}}\nNICHE:\n{{niche}}\nBOOK TYPE:\n{{type}}\n\nCreate a practical content brief covering: 10 reader problems, 10 reader questions, 10 desired outcomes, common beginner mistakes, topics to cover, topics outside scope, 10 unique angles, suggested table of contents, worksheet ideas, and claims requiring fact checking. Suggest Target reader.\nDo not invent statistics, studies, experts, quotes, or sources. Write in natural American English.`,
@@ -341,7 +343,8 @@ function condSummary(s){return (s.conditions||[]).map(c=>`${c.field} ${c.op} "${
 function renderPromptList(){
   openModal("Configure prompts",`<div class="pc-body">
     <div class="pc-head"><p class="modal-text">Steps appear in the workflow when they're visible and their conditions match the book.</p><div class="pc-tools"><button class="secondary" onclick="exportPrompts()">Export all</button><button class="secondary" onclick="importPrompts()">Import all</button><button class="primary" onclick="editPromptStep()">New step</button></div></div>
-    <div class="pc-list">${promptSteps.map(s=>`<div class="pc-row ${s.hidden?"is-hidden":""}">
+    <div class="pc-list">${promptSteps.map((s,i)=>`<div class="pc-row ${s.hidden?"is-hidden":""}" draggable="true" ondragstart="promptDragStart(event,${i})" ondragover="promptDragOver(event)" ondrop="promptDrop(event,${i})" ondragend="promptDragEnd()">
+      <span class="grip" aria-hidden="true">⠿</span>
       <div class="pc-info"><strong>${esc(s.title)}</strong><span class="muted">${esc(s.description)}</span><span class="pc-meta">${s.hidden?"Hidden · ":""}${esc(condSummary(s))}</span></div>
       <div class="pc-side"><span class="pc-id">step.${s.id}</span><div class="pc-actions">
         <button class="secondary" onclick="editPromptStep('${s.id}')">Edit</button>
@@ -349,6 +352,32 @@ function renderPromptList(){
         <button class="danger" onclick="deletePromptStep('${s.id}')">Delete</button>
       </div></div></div>`).join("")}</div>
   </div>`);
+}
+/* Reordenar steps por arrastre */
+let promptDragFrom=null;
+function promptDragStart(e,i){
+  promptDragFrom=i;
+  e.dataTransfer.effectAllowed="move";
+  e.dataTransfer.setData("text/plain",String(i));
+  e.currentTarget.classList.add("dragging");
+}
+function promptDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  document.querySelectorAll(".pc-row.drop-target").forEach(el=>el.classList.remove("drop-target"));
+  e.currentTarget.classList.add("drop-target");
+}
+function promptDragEnd(){
+  document.querySelectorAll(".pc-row").forEach(el=>el.classList.remove("dragging","drop-target"));
+  promptDragFrom=null;
+}
+function promptDrop(e,i){
+  e.preventDefault();
+  const from=promptDragFrom;promptDragFrom=null;
+  if(from===null||from===i)return promptDragEnd();
+  const [moved]=promptSteps.splice(from,1);
+  promptSteps.splice(i,0,moved);
+  savePromptSteps();renderPromptList();renderWorkflow();
 }
 let draft=null;
 function editPromptStep(id){
@@ -445,7 +474,7 @@ function renderWorkflow(){
   const steps=promptSteps.filter(s=>stepVisible(s,b));
   $("workflowTab").innerHTML=steps.map((s,i)=>{
     const done=!!b.steps[s.id];
-    return `<div class="step ${done?"done":""}"><div class="step-head"><div class="step-num">${i+1}</div><div class="step-title">${esc(s.title)}</div></div><div class="muted" style="margin-left:39px;margin-top:4px">${esc(s.description)}</div><div class="step-actions"><button class="primary-mini" onclick="showPrompt('${s.id}')">View prompt</button>${done?`<button class="edit-green" onclick="editTextStep('${s.id}')">Edit response</button>`:`<button onclick="editTextStep('${s.id}')">Paste response</button>`}</div></div>`;
+    return `<div class="step ${done?"done":""}"><div class="step-head"><div class="step-num">${i+1}</div><div class="step-title">${esc(s.title)}</div></div><div class="muted" style="margin-left:39px;margin-top:4px">${esc(s.description)}</div><div class="step-actions"><button class="primary-mini" onclick="showPrompt('${s.id}')">Prompt</button>${done?`<button class="edit-green" onclick="editTextStep('${s.id}')">Response</button>`:`<button onclick="editTextStep('${s.id}')">Response</button>`}</div></div>`;
   }).join("");
 }
 function showPrompt(id){
@@ -1389,7 +1418,7 @@ async function chapterDrop(e,i){
 async function openChapterEditor(chapterId){
   const id=selectedId;if(!id)return;
   const list=await getChapters(id);
-  const c=chapterId?list.find(x=>x.id===chapterId):{md:`# Chapter ${list.length+1}\n\n`};
+  const c=chapterId?list.find(x=>x.id===chapterId):{md:""};
   if(!c)return;
   openModal(chapterId?"Edit chapter":"New chapter",`<div class="chapter-editor">
     <div class="editor-bar"><div class="segmented"><button data-view="code" class="active">Code</button><button data-view="preview">Preview</button></div></div>
