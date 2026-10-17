@@ -551,3 +551,16 @@ button,input,select,textarea{font:inherit;color:inherit}
 .format-group{margin:0;padding:2px}
 .format-group button{padding:5px 12px;text-transform:uppercase;font-size:12px;letter-spacing:.02em}
 .build-controls .primary{padding:6px 16px}
+
+/* ---------- Lista de capítulos: ocupa todo el espacio disponible de la pestaña ---------- */
+#chaptersTab .chapters-card{flex:1 1 0;min-height:0;display:flex;flex-direction:column;margin:0}
+#chaptersTab .chapters-card .card-head{flex-shrink:0}
+#chaptersTab .chapters-card .chapter-list{flex:1 1 0;min-height:0;max-height:none;overflow:auto;padding:0 4px 0 0}
+
+/* ---------- Capítulos sin scroll: la lista crece con su contenido ---------- */
+#chaptersTab{height:auto}
+#chaptersTab .chapters-card .chapter-list{max-height:none;overflow:visible}
+
+/* ---------- La caja de capítulos crece con su contenido ---------- */
+#chaptersTab .chapters-card{flex:0 0 auto;min-height:auto;height:auto;overflow:visible;display:block}
+#chaptersTab .chapters-card .chapter-list{flex:none;min-height:auto;max-height:none;overflow:visible}

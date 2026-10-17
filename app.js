@@ -253,7 +253,8 @@ function openBook(id){
 function setTab(name){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
   for(const n of ["workflow","publishing","chapters","build"])$(n+"Tab").classList.toggle("hidden",n!==name);
-  if(name==="chapters"||name==="build"){fitTab(name+"Tab");renderBuild()}
+  if(name==="build")fitTab("buildTab");
+  if(name==="chapters"||name==="build")renderBuild();
 }
 
 /* ---------- Publishing tab ---------- */
@@ -665,7 +666,7 @@ function fitTab(id){
   const top=el.getBoundingClientRect().top+window.scrollY;
   el.style.height=Math.max(420,window.innerHeight-top-24)+"px";
 }
-window.addEventListener("resize",()=>{fitTab("chaptersTab");fitTab("buildTab")});
+window.addEventListener("resize",()=>fitTab("buildTab"));
 async function renderBuild(){
   const id=selectedId;if(!id)return;
   const b=selected();
@@ -698,7 +699,7 @@ async function renderBuild(){
     frame.srcdoc=buildHtmlPreview(m,previewUrl,currentTemplate);
     box.appendChild(frame);
   }
-  fitTab("chaptersTab");fitTab("buildTab");
+  fitTab("buildTab");
 }
 async function uploadChapters(input){
   const id=selectedId,files=[...input.files].filter(f=>/\.(md|txt)$/i.test(f.name));
