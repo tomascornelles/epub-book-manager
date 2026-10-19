@@ -1330,6 +1330,7 @@ let previewUrl=null;
 function fitTab(id){
   const el=$(id);
   if(el.classList.contains("hidden"))return;
+  if(id==="buildTab"){el.style.height="";return} // Build: la vista previa tiene su propio mínimo (CSS)
   const top=el.getBoundingClientRect().top+window.scrollY;
   el.style.height=Math.max(420,window.innerHeight-top-24)+"px";
 }
