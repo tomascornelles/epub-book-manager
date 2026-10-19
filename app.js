@@ -1235,7 +1235,7 @@ ${p.back?`<section class="back-cover"><h2>About this book</h2>${mdToHtml(p.back)
 }
 const READER_PAD=28;
 /* CSS de paginación: el cuerpo se divide en columnas de ancho de ventana; cada columna es una página. */
-const READER_CSS=`html{overflow:hidden!important;background:#fff!important}
+const READER_CSS=`html{overflow:hidden!important;background:#fff!important;font-size:85%!important}
 body{margin:0!important;max-width:none!important;box-sizing:border-box!important;height:100vh!important;padding:${READER_PAD}px 0!important;column-width:100vw!important;column-gap:0!important;column-fill:auto!important;overflow:visible!important}
 section.front,section.chapter,section.back,section.back-cover{padding:0 ${READER_PAD}px!important;break-before:column}
 section.title-page{break-before:auto;break-inside:avoid;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;box-sizing:border-box;height:100vh;margin:-${READER_PAD}px 0!important;padding:0 ${READER_PAD}px!important}
@@ -1249,10 +1249,13 @@ table{width:100%!important;max-width:100%!important;table-layout:fixed}
 td,th,p,li{overflow-wrap:anywhere}
 pre{white-space:pre-wrap;word-break:break-word}
 p{orphans:2;widows:2}`;
+const READER_TEXT_SCALE=0.85; // tipografía de la vista previa: 85 % del tamaño normal
 function buildHtmlPreview(m,coverUrl,tpl){
   const html=buildDocument(m,coverUrl,tpl,"screen");
   const i=html.indexOf("</style></head>");
-  return html.slice(0,i)+READER_CSS+html.slice(i);
+  // em/rem se escalan con html{font-size}; los tamaños absolutos (px/pt) de las plantillas se multiplican
+  const head=html.slice(0,i).replace(/font-size:\s*(\d*\.?\d+)(px|pt)/g,(_,n,u)=>`font-size:${(n*READER_TEXT_SCALE).toFixed(2)}${u}`);
+  return head+READER_CSS+html.slice(i);
 }
 function printPdf(m,tpl){
   const coverUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
