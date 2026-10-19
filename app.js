@@ -1224,7 +1224,7 @@ function buildDocument(m,coverUrl,tpl,mode){
     ? (coverUrl
         ? `<section class="cover-page"><img src="${coverUrl}" alt=""></section>`
         : `<section class="cover-page no-cover"><h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>`)
-    : `<section class="title-page">${coverUrl?`<img class="cover" src="${coverUrl}" alt="">`:""}<h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>`;
+    : `<section class="title-page${coverUrl?" has-cover":""}">${coverUrl?`<img class="cover" src="${coverUrl}" alt="">`:""}<h1>${esc(m.title)}</h1><p class="author">${esc(m.author)}</p></section>`;
   return `<!DOCTYPE html><html lang="${esc(m.lang)}"><head><meta charset="utf-8"><title>${esc(m.title)}</title><style>${BASE_CSS}${t.css}${printCss}</style></head><body>
 ${titlePage}
 ${p.fm?`<section class="front">${mdToHtml(p.fm)}</section>`:""}
@@ -1235,18 +1235,26 @@ ${p.back?`<section class="back-cover"><h2>About this book</h2>${mdToHtml(p.back)
 }
 const READER_PAD=28;
 /* CSS de paginación: el cuerpo se divide en columnas de ancho de ventana; cada columna es una página. */
-const READER_CSS=`html{overflow:hidden!important;background:#fff!important}
-body{margin:0!important;max-width:none!important;box-sizing:border-box!important;height:100vh!important;padding:${READER_PAD}px!important;column-width:calc(100vw - ${2*READER_PAD}px)!important;column-gap:${2*READER_PAD}px!important;column-fill:auto!important;overflow:visible!important}
-section.title-page,section.front,section.chapter,section.back,section.back-cover{break-before:column}
+const READER_CSS=`html{overflow:hidden!important;background:#fff!important;font-size:60%!important}
+body{margin:0!important;max-width:none!important;box-sizing:border-box!important;height:100vh!important;padding:${READER_PAD}px 0!important;column-width:100vw!important;column-gap:0!important;column-fill:auto!important;overflow:visible!important}
+section.front,section.chapter,section.back,section.back-cover{padding:0 ${READER_PAD}px!important;break-before:column}
+section.title-page{break-before:auto;break-inside:avoid;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;box-sizing:border-box;height:100vh;margin:-${READER_PAD}px 0!important;padding:0 ${READER_PAD}px!important}
+section.title-page.has-cover{padding:0!important}
+section.title-page.has-cover img.cover{display:block;width:100%;height:100%;max-width:none!important;max-height:none!important;object-fit:cover;margin:0!important}
+section.title-page.has-cover h1,section.title-page.has-cover .author{display:none}
 h1,h2,h3,h4{break-after:avoid}
 img,pre,table,blockquote,figure,.table-wrap{break-inside:avoid}
 img{max-width:100%;max-height:calc(100vh - ${2*READER_PAD}px);height:auto;object-fit:contain}
+table{width:100%!important;max-width:100%!important;table-layout:fixed}
+td,th,p,li{overflow-wrap:anywhere}
 pre{white-space:pre-wrap;word-break:break-word}
 p{orphans:2;widows:2}`;
 function buildHtmlPreview(m,coverUrl,tpl){
   const html=buildDocument(m,coverUrl,tpl,"screen");
   const i=html.indexOf("</style></head>");
-  return html.slice(0,i)+READER_CSS+html.slice(i);
+  // Tipografía al 60 %: html{font-size} escala em/rem; los tamaños absolutos (px/pt) se multiplican.
+  const head=html.slice(0,i).replace(/font-size:\s*(\d*\.?\d+)(px|pt)/g,(_,n,u)=>`font-size:${(n*0.6).toFixed(2)}${u}`);
+  return head+READER_CSS+html.slice(i);
 }
 function printPdf(m,tpl){
   const coverUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
