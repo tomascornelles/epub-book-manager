@@ -1233,7 +1233,21 @@ ${p.bm?`<section class="back">${mdToHtml(p.bm)}</section>`:""}
 ${p.back?`<section class="back-cover"><h2>About this book</h2>${mdToHtml(p.back)}</section>`:""}
 </body></html>`;
 }
-function buildHtmlPreview(m,coverUrl,tpl){return buildDocument(m,coverUrl,tpl,"screen")}
+const READER_PAD=28;
+/* CSS de paginación: el cuerpo se divide en columnas de ancho de ventana; cada columna es una página. */
+const READER_CSS=`html{overflow:hidden!important;background:#fff!important}
+body{margin:0!important;max-width:none!important;box-sizing:border-box!important;height:100vh!important;padding:${READER_PAD}px!important;column-width:calc(100vw - ${2*READER_PAD}px)!important;column-gap:${2*READER_PAD}px!important;column-fill:auto!important;overflow:visible!important}
+section.title-page,section.front,section.chapter,section.back,section.back-cover{break-before:column}
+h1,h2,h3,h4{break-after:avoid}
+img,pre,table,blockquote,figure,.table-wrap{break-inside:avoid}
+img{max-width:100%;max-height:calc(100vh - ${2*READER_PAD}px);height:auto;object-fit:contain}
+pre{white-space:pre-wrap;word-break:break-word}
+p{orphans:2;widows:2}`;
+function buildHtmlPreview(m,coverUrl,tpl){
+  const html=buildDocument(m,coverUrl,tpl,"screen");
+  const i=html.indexOf("</style></head>");
+  return html.slice(0,i)+READER_CSS+html.slice(i);
+}
 function printPdf(m,tpl){
   const coverUrl=m.cover?URL.createObjectURL(m.cover.blob):null;
   const frame=document.createElement("iframe");
@@ -1345,13 +1359,18 @@ async function renderBuild(){
     <div class="build-preview" id="previewBox"></div>
   </div>`;
   const box=$("previewBox");
+  if(readerRO){readerRO.disconnect();readerRO=null}
+  readerFrame=null;
   if(!count){
     box.innerHTML='<p class="muted preview-empty">Add chapters to see the preview.</p>';
   }else{
-    const frame=document.createElement("iframe");
-    frame.title="Preview";
+    box.innerHTML=`<div class="reader-stage"><button class="secondary reader-nav prev" onclick="readerPrev()" aria-label="Previous page">‹</button><iframe class="reader-page" title="Preview"></iframe><button class="secondary reader-nav next" onclick="readerNext()" aria-label="Next page">›</button></div><div class="reader-footer"><span id="pageInfo">1 / 1</span></div>`;
+    const frame=box.querySelector("iframe");
+    readerFrame=frame;readerPage=0;
+    frame.onload=()=>{attachReaderInput(frame);readerLayout()};
     frame.srcdoc=buildHtmlPreview(m,previewUrl,currentTemplate);
-    box.appendChild(frame);
+    readerRO=new ResizeObserver(()=>readerLayout());
+    readerRO.observe(box.querySelector(".reader-stage"));
   }
   fitTab("buildTab");
 }
@@ -1464,10 +1483,11 @@ async function saveChapterEdit(chapterId){
 
 function setFormat(f){currentFormat=f;renderBuild()}
 function jumpToChapter(anchor){
-  const frame=document.querySelector("#buildTab .build-preview iframe");
-  if(!frame||!anchor)return;
-  const target=frame.contentDocument&&frame.contentDocument.getElementById(anchor);
-  if(target)target.scrollIntoView({block:"start"});
+  const doc=readerFrame&&readerFrame.contentDocument;
+  const el=doc&&anchor?doc.getElementById(anchor):null;
+  if(!el)return;
+  const x=el.getBoundingClientRect().left+doc.scrollingElement.scrollLeft;
+  goReaderPage(Math.floor(x/readerWidth()));
 }
 
 /* ---------- Event wiring ---------- */
@@ -1576,6 +1596,55 @@ function applyRemote(){
 function scheduleRemote(){clearTimeout(syncTimer);syncTimer=setTimeout(applyRemote,60)}
 window.addEventListener("storage",e=>{if(e.key&&String(e.key).startsWith("epub-"))scheduleRemote()});
 SYNC?.addEventListener("message",scheduleRemote);
+
+/* ---------- Lector paginado (vista previa de Build) ---------- */
+let readerFrame=null,readerPage=0,readerPages=1,readerRO=null,readerWheelLock=0;
+function readerWidth(){return readerFrame?.contentWindow?.innerWidth||1}
+function readerScroller(){return readerFrame?.contentDocument?.scrollingElement||null}
+function readerLayout(){
+  const sc=readerScroller();if(!sc)return;
+  readerPages=Math.max(1,Math.round(sc.scrollWidth/readerWidth()));
+  goReaderPage(Math.min(readerPage,readerPages-1),false);
+}
+function goReaderPage(n,animate=true){
+  const sc=readerScroller();
+  readerPage=Math.max(0,Math.min(n,readerPages-1));
+  if(sc)sc.scrollTo({left:readerPage*readerWidth(),behavior:animate?"smooth":"auto"});
+  const info=$("pageInfo");if(info)info.textContent=`${readerPage+1} / ${readerPages}`;
+  const p=document.querySelector(".reader-nav.prev"),q=document.querySelector(".reader-nav.next");
+  if(p)p.disabled=readerPage===0;
+  if(q)q.disabled=readerPage>=readerPages-1;
+}
+function readerNext(){goReaderPage(readerPage+1)}
+function readerPrev(){goReaderPage(readerPage-1)}
+function attachReaderInput(frame){
+  const d=frame.contentDocument;
+  d.addEventListener("keydown",e=>{
+    if(e.key==="ArrowRight"||e.key==="PageDown"){e.preventDefault();readerNext()}
+    else if(e.key==="ArrowLeft"||e.key==="PageUp"){e.preventDefault();readerPrev()}
+  });
+  let tx=null;
+  d.addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{passive:true});
+  d.addEventListener("touchend",e=>{
+    if(tx===null)return;
+    const dx=e.changedTouches[0].clientX-tx;tx=null;
+    if(Math.abs(dx)>40){dx<0?readerNext():readerPrev()}
+  });
+  d.addEventListener("wheel",e=>{
+    e.preventDefault();
+    const now=Date.now();if(now<readerWheelLock)return;
+    const dd=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
+    if(Math.abs(dd)<8)return;
+    readerWheelLock=now+450;
+    dd>0?readerNext():readerPrev();
+  },{passive:false});
+}
+document.addEventListener("keydown",e=>{
+  if(!readerFrame||$("buildTab").classList.contains("hidden"))return;
+  if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||""))return;
+  if(e.key==="ArrowRight"){e.preventDefault();readerNext()}
+  else if(e.key==="ArrowLeft"){e.preventDefault();readerPrev()}
+});
 
 document.addEventListener("click",async e=>{
   const btn=e.target.closest(".code-copy");if(!btn)return;

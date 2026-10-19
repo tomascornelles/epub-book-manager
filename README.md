@@ -76,7 +76,8 @@ Attach the book file (`.epub` or `.md`) and the cover image. Both are stored in 
 Upload several `.md` or `.txt` files at once, or create chapters from scratch. Chapter order drives the table of contents and the generated files. The list grows with its content, so the whole page scrolls naturally.
 
 ### Build tab
-- **Contents** jumps the preview to a chapter.
+- **Preview** is an e-reader emulator with no scrolling. Turn pages with the ‹ › buttons, the arrow keys, a swipe, or the mouse wheel. Each chapter starts on a new page.
+- **Contents** jumps to the page where the chapter starts.
 - **Template** picks the layout used for the preview and for PDF. Templates do not change the EPUB, Markdown or TXT output.
 - Choose a format (`epub`, `md`, `txt` or `pdf`) and press **Generate**.
 - Index entries in the front matter link to their chapters automatically.
