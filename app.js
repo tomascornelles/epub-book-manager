@@ -340,7 +340,7 @@ function renderPublishing(){
 function openPromptConfig(){renderPromptList()}
 function condSummary(s){return (s.conditions||[]).map(c=>`${c.field} ${c.op} "${c.value}"`).join(" & ")||"Always"}
 function renderPromptList(){
-  openModal("Configure prompts",`<div class="pc-body">
+  openModal("Configure prompts",`<div class="pc-body fill">
     <div class="pc-head"><p class="modal-text">Steps appear in the workflow when they're visible and their conditions match the book.</p><div class="pc-tools"><button class="secondary" onclick="exportPrompts()">Export all</button><button class="secondary" onclick="importPrompts()">Import all</button><button class="primary" onclick="editPromptStep()">New step</button></div></div>
     <div class="pc-list">${promptSteps.map((s,i)=>`<div class="pc-row ${s.hidden?"is-hidden":""}" draggable="true" ondragstart="promptDragStart(event,${i})" ondragover="promptDragOver(event)" ondrop="promptDrop(event,${i})" ondragend="promptDragEnd()">
       <span class="grip" aria-hidden="true">⠿</span>
@@ -382,19 +382,18 @@ let draft=null;
 function editPromptStep(id){
   const s=id?promptSteps.find(x=>x.id===id):null;
   draft=s?JSON.parse(JSON.stringify(s)):{id:"step-"+uid().slice(0,8),title:"",description:"",fileName:"",conditions:[],prompt:"",hidden:false};
-  openModal(`${s?"Edit":"New"} step — step.${draft.id}`,`<div class="ps-form">
+  openModal(`${s?"Edit":"New"} step — step.${draft.id}`,`<div class="ps-form fill">
     <label>Title<input id="psTitle"></label>
     <label>Description<input id="psDesc"></label>
-    <div class="ps-conds"><div class="ps-label">Show when all of these match</div><div id="psCondRows"></div><button class="secondary" onclick="addCondRow()">Add condition</button></div>
-    <label>Prompt<textarea id="psPrompt" class="ps-prompt" rows="12" spellcheck="false"></textarea></label>
+    <details class="ps-conds" id="psCondBox"><summary class="ps-label" id="psCondSummary">Conditions</summary><div class="ps-conds-body"><div class="ps-label">Show when all of these match</div><div id="psCondRows"></div><button class="secondary" onclick="addCondRow()">Add condition</button></div></details>
+    <label class="ps-prompt-wrap">Prompt<textarea id="psPrompt" class="ps-prompt" spellcheck="false"></textarea></label>
     <div class="ps-wild"><span class="ps-label">Wildcards</span>${WILDCARDS.map(w=>`<button type="button" class="chip" onclick="insertWildcard('${w}')">{{${w}}}</button>`).join("")}</div>
     <p class="muted ps-note">Use {{step.ID}} to insert the saved text of another step, where ID is that step's id.</p>
-    <div class="confirm-actions"><button class="secondary" onclick="renderPromptList()">Cancel</button><button class="primary" onclick="savePromptStep()">Save step</button></div>
+    <div class="confirm-actions ps-footer"><button class="secondary" onclick="renderPromptList()">Cancel</button><button class="primary" onclick="savePromptStep()">Save step</button></div>
   </div>`);
   $("psTitle").value=draft.title;
   $("psDesc").value=draft.description;
   $("psPrompt").value=draft.prompt;
-  const pt=$("psPrompt");pt.oninput=()=>autoGrow(pt);autoGrow(pt);
   const rows=$("psCondRows");
   rows.oninput=rows.onchange=e=>{
     const i=Number(e.target.dataset.ci);
@@ -402,9 +401,11 @@ function editPromptStep(id){
     draft.conditions[i][e.target.dataset.k]=e.target.value;
   };
   renderCondRows();
+  $("psCondBox").open=draft.conditions.length>0;
   modalOnClose=renderPromptList;
 }
 function renderCondRows(){
+  const sm=$("psCondSummary");if(sm)sm.textContent=`Conditions (${draft.conditions.length})`;
   $("psCondRows").innerHTML=draft.conditions.map((c,i)=>`<div class="ps-cond">
       <select data-ci="${i}" data-k="field">${FIELDS.map(([v,l])=>`<option value="${v}" ${c.field===v?"selected":""}>${l}</option>`).join("")}</select>
       <select data-ci="${i}" data-k="op">${OPS.map(o=>`<option ${c.op===o?"selected":""}>${o}</option>`).join("")}</select>
@@ -417,7 +418,6 @@ function insertWildcard(w){
   const t=$("psPrompt"),tok=`{{${w}}}`,s=t.selectionStart??t.value.length,e=t.selectionEnd??s;
   t.value=t.value.slice(0,s)+tok+t.value.slice(e);
   t.focus();t.selectionStart=t.selectionEnd=s+tok.length;
-  autoGrow(t);
 }
 function savePromptStep(){
   draft.title=$("psTitle").value.trim()||"Untitled step";
@@ -485,11 +485,11 @@ function autoGrow(t){t.style.height="auto";t.style.height=t.scrollHeight+"px"}
 async function copyPrompt(){await navigator.clipboard.writeText($("promptText").value);toast("Prompt copied")}
 function editTextStep(id){
   const b=selected(),s=promptSteps.find(x=>x.id===id);if(!s)return;
-  openModal(`Edit / paste — ${s.title}`,`<div class="form-editor">
+  openModal(`Edit / paste — ${s.title}`,`<div class="form-editor fill">
     <div class="editor-bar"><div class="segmented"><button data-sview="code" class="active" onclick="setStepView('code')">Code</button><button data-sview="preview" onclick="setStepView('preview')">Preview</button></div></div>
     <textarea id="stepContent" class="md-code" spellcheck="false">${esc(b.steps[id]||"")}</textarea>
     <div id="stepPreview" class="md-preview hidden"></div>
-    <div><button class="primary" onclick="saveTextStep('${id}')">Save</button></div>
+    <div class="editor-footer"><button class="primary" onclick="saveTextStep('${id}')">Save</button></div>
   </div>`);
 }
 function setStepView(view){
@@ -1458,7 +1458,7 @@ async function openChapterEditor(chapterId){
   const list=await getChapters(id);
   const c=chapterId?list.find(x=>x.id===chapterId):{md:""};
   if(!c)return;
-  openModal(chapterId?"Edit chapter":"New chapter",`<div class="chapter-editor">
+  openModal(chapterId?"Edit chapter":"New chapter",`<div class="chapter-editor fill">
     <div class="editor-bar"><div class="segmented"><button data-view="code" class="active">Code</button><button data-view="preview">Preview</button></div></div>
     <textarea id="chapterMd" class="md-code" spellcheck="false"></textarea>
     <div id="chapterPreview" class="md-preview hidden"></div>

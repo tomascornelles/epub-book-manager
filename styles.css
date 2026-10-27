@@ -514,7 +514,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .md-code,.md-preview{width:100%;min-height:52vh;border-radius:10px;border:1px solid var(--field-line);background:var(--field);color:var(--text);padding:14px}
 .md-code{font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;outline:none}
 .md-code:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.md-preview{overflow:auto;line-height:1.6;font-family:Georgia,serif;font-size:120%;}
+.md-preview{overflow:auto;line-height:1.6;font-family:Georgia,serif}
 .md-preview h1,.md-preview h2,.md-preview h3{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
 .md-preview pre{background:var(--surface-2);padding:10px;border-radius:8px;overflow:auto;white-space:pre-wrap}
 .md-preview code{font-family:ui-monospace,monospace;font-size:.9em}
@@ -694,3 +694,30 @@ button:disabled{opacity:.5;cursor:default}
 .md-preview table{border-collapse:collapse;width:auto;max-width:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:14px}
 .md-preview th,.md-preview td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
 .md-preview th{background:var(--surface-2);font-weight:600}
+
+/* ---------- Modales con altura fija y cuerpo flexible (editores de steps, capítulos y prompts) ----------
+ * La cabecera y el footer quedan fijos; solo la caja de texto o la lista hacen scroll. */
+.modal-card:has(.fill){height:min(88vh,860px)}
+#modalBody:has(.fill){display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
+.fill{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;gap:12px}
+.fill > .editor-bar,.fill > .editor-footer,.fill > .confirm-actions{flex:none}
+.fill > .md-code,.fill > .md-preview{flex:1 1 0;min-height:160px;height:auto;max-height:none;resize:none;overflow:auto}
+.md-preview{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,system-ui,sans-serif;font-size:14px}
+
+/* Prompts: barra de botones fija, scroll solo en el listado */
+.pc-body.fill{display:flex;flex-direction:column;padding:18px;gap:14px}
+.pc-body.fill > .pc-head{flex:none}
+.pc-body.fill > .pc-list{flex:1 1 0;min-height:0;overflow:auto;padding-right:4px;align-content:start}
+
+/* Prompts: edición con alto fijo y textarea con scroll */
+.ps-form.fill{padding:18px;gap:14px}
+.ps-form.fill > label:not(.ps-prompt-wrap){flex:none}
+.ps-form .ps-prompt-wrap{flex:1 1 0;min-height:140px;display:flex;flex-direction:column;gap:6px}
+.ps-form .ps-prompt{flex:1 1 0;min-height:0;height:auto;resize:none;overflow:auto}
+.ps-form.fill > .ps-wild,.ps-form.fill > .ps-note,.ps-form.fill > .ps-footer{flex:none}
+details.ps-conds{display:block;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--surface-2)}
+details.ps-conds > summary{cursor:pointer;list-style:none;user-select:none}
+details.ps-conds > summary::-webkit-details-marker{display:none}
+details.ps-conds > summary::before{content:"▸";display:inline-block;width:14px;transition:transform .15s}
+details.ps-conds[open] > summary::before{transform:rotate(90deg)}
+details.ps-conds > .ps-conds-body{display:grid;gap:8px;margin-top:10px}
