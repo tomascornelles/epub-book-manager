@@ -721,3 +721,9 @@ details.ps-conds > summary::-webkit-details-marker{display:none}
 details.ps-conds > summary::before{content:"▸";display:inline-block;width:14px;transition:transform .15s}
 details.ps-conds[open] > summary::before{transform:rotate(90deg)}
 details.ps-conds > .ps-conds-body{display:grid;gap:8px;margin-top:10px}
+
+/* ---------- Chapters: botones de acción fijos, solo la lista hace scroll ----------
+ * La tarjeta ocupa la altura visible de la pantalla; la cabecera no se mueve y la lista scrollea. */
+#chaptersTab .chapters-card{display:flex;flex-direction:column;flex:none;height:max(300px,calc(100vh - 360px));min-height:0;max-height:none;overflow:hidden;margin:0}
+#chaptersTab .chapters-card .card-head{flex:none}
+#chaptersTab .chapters-card .chapter-list{flex:1 1 0;min-height:0;max-height:none;overflow:auto;padding:0 4px 0 0}
