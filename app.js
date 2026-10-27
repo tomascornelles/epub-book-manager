@@ -491,6 +491,7 @@ function editTextStep(id){
     <div id="stepPreview" class="md-preview hidden"></div>
     <div class="editor-footer"><button class="primary" onclick="saveTextStep('${id}')">Save</button></div>
   </div>`);
+  setStepView((b.steps[id]||"").trim()?"preview":"code");
 }
 function setStepView(view){
   document.querySelectorAll("[data-sview]").forEach(b=>b.classList.toggle("active",b.dataset.sview===view));
@@ -1465,6 +1466,7 @@ async function openChapterEditor(chapterId){
     <div class="confirm-actions"><button class="secondary" id="cancelChapter">Cancel</button><button class="primary" id="saveChapter">Save chapter</button></div>
   </div>`);
   $("chapterMd").value=c.md;
+  setChapterView((c.md||"").trim()?"preview":"code");
   document.querySelectorAll("[data-view]").forEach(btn=>btn.onclick=()=>setChapterView(btn.dataset.view));
   $("cancelChapter").onclick=closeModal;
   $("saveChapter").onclick=()=>saveChapterEdit(chapterId||null);
